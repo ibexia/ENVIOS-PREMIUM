@@ -17,6 +17,9 @@ from email.mime.base import MIMEBase
 from email import encoders
 import pandas_ta as ta
 
+# ----------------------------------------------------------------------
+# DICCIONARIO DE TICKERS
+# ----------------------------------------------------------------------
 tickers = {
     'Acciona': 'ANA.MC',
     'Accionarenovables': 'ANE.MC',
@@ -93,35 +96,50 @@ tickers = {
     'Urbas': 'URB.MC',
 }
 
+# ----------------------------------------------------------------------
+# 1. FUNCIÓN MODIFICADA: LECTURA DE GOOGLE SHEETS
+# Se modifica para leer las 4 columnas (Nombre, Email, Plan, Empresas).
+# ----------------------------------------------------------------------
 def leer_google_sheets():
-    credentials_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
-    if not credentials_json:
-        raise Exception("No se encontró la variable de entorno GOOGLE_APPLICATION_CREDENTIALS")
+    """Lee la lista de usuarios, sus planes y empresas elegidas."""
+    try:
+        credentials_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+        if not credentials_json:
+            raise Exception("No se encontró la variable de entorno GOOGLE_APPLICATION_CREDENTIALS")
 
-    creds_dict = json.loads(credentials_json)
-    creds = service_account.Credentials.from_service_account_info(
-        creds_dict,
-        scopes=['https://www.googleapis.com/auth/spreadsheets.readonly']
-    )
+        creds_dict = json.loads(credentials_json)
+        creds = service_account.Credentials.from_service_account_info(
+            creds_dict,
+            scopes=['https://www.googleapis.com/auth/spreadsheets.readonly']
+        )
+    except Exception as e:
+        print(f"Error en credenciales: {e}")
+        return []
 
     spreadsheet_id = os.getenv('SPREADSHEET_ID')
     if not spreadsheet_id:
         raise Exception("No se encontró la variable de entorno SPREADSHEET_ID")
+    
+    # Rango: A: Nombre, B: Email, C: Plan, D: Empresas
+    # Asumo Hoja1, empezando en Fila 2 (A2) para saltar el encabezado
+    range_name = 'Hoja1!A2:D' 
 
-    range_name = 'A:A'
     service = build('sheets', 'v4', credentials=creds)
     sheet = service.spreadsheets()
     result = sheet.values().get(spreadsheetId=spreadsheet_id, range=range_name).execute()
     values = result.get('values', [])
 
     if not values:
-        print('No se encontraron datos.')
+        print('No se encontraron usuarios premium.')
     else:
-        print('Datos leídos de la hoja:')
-        for row in values:
-            print(row)
-    return [row[0] for row in values if row]
+        print(f'Se encontraron {len(values)} usuarios premium para procesar.')
+        
+    # Devuelve: [['Nombre', 'Email', 'Plan', 'Empresas'], ...]
+    return values 
 
+# ----------------------------------------------------------------------
+# FUNCIONES AUXILIARES (SE MANTIENEN IGUAL)
+# ----------------------------------------------------------------------
 def formatear_numero(numero):
     if pd.isna(numero) or numero is None:
         return "N/A"
@@ -399,7 +417,7 @@ def clasificar_empresa(data):
         "Riesgo de Venta Activada": 5,
         "Seguirá bajando": 6,
         "Intermedio": 7,
-        "Compra RIESGO": 8 # Esta prioridad se anula con la clave de ordenación en generar_reporte, pero se mantiene aquí por consistencia.
+        "Compra RIESGO": 8 
     }
 
     if estado_smi == "Sobreventa":
@@ -407,7 +425,7 @@ def clasificar_empresa(data):
             # --- Lógica de Filtro Semanal ---
             if estado_smi_weekly == "Sobrecompra":
                 data['OPORTUNIDAD'] = "Compra RIESGO"
-                data['COMPRA_SI'] = "NO RECOMENDAMOS" # La subida puede ser corta
+                data['COMPRA_SI'] = "NO RECOMENDAMOS" 
                 data['VENDE_SI'] = "NO VENDER"
                 data['ORDEN_PRIORIDAD'] = prioridad["Compra RIESGO"]
                 data['ADVERTENCIA_SEMANAL'] = "SI"
@@ -540,99 +558,162 @@ def generar_observaciones(data):
     # Se añade la advertencia al inicio del texto de la observación
     return f'<p style="text-align:left; color:#000;">{texto_observacion.strip()}{advertencia_texto}{texto.strip()}</p>'
 
+def obtener_clave_ordenacion(empresa):
+    categoria = empresa['OPORTUNIDAD']
+    
+    prioridad = {
+        "Posibilidad de Compra Activada": 1,
+        "Posibilidad de Compra": 2,
+        "Compra RIESGO": 2.5,
+        "VIGILAR": 3,
+        "Riesgo de Venta": 4,
+        "Riesgo de Venta Activada": 5,
+        "Seguirá bajando": 6,
+        "Intermedio": 7,
+    }
 
-def enviar_email_con_adjunto(html_body, asunto_email):
-    # ATENCIÓN: Estas variables de correo no se modifican según tu petición.
-    # Asegúrate de que los datos de acceso estén correctos.
-    remitente = "xumkox@gmail.com"
-    destinatario = "xumkox@gmail.com"
-    password = "kdgz lvdo wqvt vfkt"
-    msg = MIMEMultipart()
-    msg['From'] = remitente
-    msg['To'] = destinatario
-    msg['Subject'] = asunto_email
+    orden_interna = prioridad.get(categoria, 99)
+    return (orden_interna, empresa['NOMBRE_EMPRESA'])
 
-    html_filename = "analisis-empresas.html"
-    with open(html_filename, "w", encoding="utf-8") as f:
-        f.write(html_body)
+# ----------------------------------------------------------------------
+# 2. FUNCIÓN NUEVA: GENERACIÓN DE UNA FILA DE REPORTE HTML
+# Esta función es la que estaba dentro del bucle de generar_reporte()
+# ----------------------------------------------------------------------
+def generar_fila_reporte(data):
+    """Genera la fila principal, la fila de detalle y la fila de observaciones para una empresa."""
+    
+    # Lógica para determinar el enlace (si quieres mantener la integración con tu web)
+    global tickers
+    nombre_empresa_url = None
+    for nombre, ticker_val in tickers.items():
+        if ticker_val == data['TICKER']:
+            nombre_empresa_url = nombre
+            break
+    
+    if nombre_empresa_url:
+        empresa_link = f'https://ibexia.es/category/{nombre_empresa_url.lower()}/'
+    else:
+        empresa_link = '#'
+    
+    nombre_con_precio = f"<a href='{empresa_link}' target='_blank' style='text-decoration:none; color:inherit;'><div class='stacked-text'><b>{data['NOMBRE_EMPRESA']}</b><br>({formatear_numero(data['PRECIO_ACTUAL'])}€)</div></a>"
 
-    with open(html_filename, "rb") as attachment:
-        part = MIMEBase("application", "octet-stream")
-        part.set_payload(attachment.read())
+    # Ajuste de clases para el estado 'Compra RIESGO'
+    if "compra" in data['OPORTUNIDAD'].lower() and "riesgo" not in data['OPORTUNIDAD'].lower():
+        clase_oportunidad = "compra"
+        celda_empresa_class = "green-cell"
+    elif "venta" in data['OPORTUNIDAD'].lower():
+        clase_oportunidad = "venta"
+        celda_empresa_class = "red-cell"
+    elif "vigilar" in data['OPORTUNIDAD'].lower():
+        clase_oportunidad = "vigilar"
+        celda_empresa_class = ""
+    elif "riesgo" in data['OPORTUNIDAD'].lower():
+        clase_oportunidad = "riesgo-compra"
+        celda_empresa_class = "yellow-cell"
+    else:
+        clase_oportunidad = ""
+        celda_empresa_class = ""
+    
+    
+    observaciones = generar_observaciones(data)
+    
+    # Se utiliza un índice único temporal para el botón de expansión (se usará en el bucle principal)
+    index = random.randint(1000, 9999) 
+    
+    # --- FILAS DE REPORTE CON OBSERVACIÓN SEMANAL EN DETALLE ---
+    return f"""
+                <tr class="main-row" data-index="{index}">
+                    <td class="{celda_empresa_class}">{nombre_con_precio}</td>
+                    <td>{data['TENDENCIA_ACTUAL']}</td>
+                    <td class="{clase_oportunidad}">{data['OPORTUNIDAD']}</td>
+                    <td>{data['COMPRA_SI']}</td>
+                    <td>{data['VENDE_SI']}</td>
+                    <td><span class="expand-button" onclick="toggleDetails({index})">Ver más...</span></td>
+                </tr>
+                <tr class="collapsible-row detailed-row-{index}">
+                    <td colspan="6">
+                        <div style="display:flex; justify-content:space-around; align-items:flex-start; padding: 10px;">
+                            <div style="flex-basis: 25%; text-align:left;">
+                                <b>EMA</b><br>
+                                <span style="font-weight:bold;">{formatear_numero(data['VALOR_EMA'])}€</span><br>
+                                ({data['TIPO_EMA']})
+                            </div>
+                            <div style="flex-basis: 25%; text-align:left;">
+                                <b>Soportes</b><br>
+                                S1: {formatear_numero(data['SOPORTE_1'])}€<br>
+                                S2: {formatear_numero(data['SOPORTE_2'])}€
+                            </div>
+                            <div style="flex-basis: 25%; text-align:left;">
+                                <b>Resistencias</b><br>
+                                R1: {formatear_numero(data['RESISTENCIA_1'])}€<br>
+                                R2: {formatear_numero(data['RESISTENCIA_2'])}€
+                            </div>
+                            <div style="flex-basis: 25%; text-align:left; font-size:0.9em;">
+                                <b>Análisis Semanal (SMI)</b><br>
+                                {data['OBSERVACION_SEMANAL']}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                <tr class="observaciones-row">
+                    <td colspan="6">{observaciones}</td>
+                </tr>
+    """
 
-    encoders.encode_base64(part)
-    part.add_header(
-        "Content-Disposition",
-        f"attachment; filename={html_filename}",
-    )
-    msg.attach(part)
+# ----------------------------------------------------------------------
+# 3. FUNCIÓN NUEVA: GENERACIÓN DEL CUERPO HTML COMPLETO
+# Contiene el HTML grande y llama a generar_fila_reporte.
+# ----------------------------------------------------------------------
+def generar_html_reporte(datos_ordenados, nombre_usuario):
+    """Genera el cuerpo HTML completo con datos y estilos."""
 
-    try:
-        servidor = smtplib.SMTP('smtp.gmail.com', 587)
-        servidor.starttls()
-        servidor.login(remitente, password)
-        servidor.sendmail(remitente, destinatario, msg.as_string())
-        servidor.quit()
-        print(f"✅ Correo enviado con el asunto: {asunto_email}")
-        os.remove(html_filename)
-    except Exception as e:
-        print("❌ Error al enviar el correo:", e)
-
-def generar_reporte():
-    try:
-        all_tickers = leer_google_sheets()[1:]
-        if not all_tickers:
-            print("No hay tickers para procesar.")
-            return
-
-        datos_completos = []
-        for ticker in all_tickers:
-            print(f"🔎 Analizando {ticker}...")
-            
-            try:
-                data = obtener_datos_yfinance(ticker)
-                if data:
-                    datos_completos.append(clasificar_empresa(data))
-            except Exception as e:
-                print(f"❌ Error al procesar {ticker}: {e}. Saltando a la siguiente empresa...")
-                continue
-                
-            time.sleep(1)
-
-        # --- Lógica de ordenación MODIFICADA para mover "Compra RIESGO" arriba ---
-        def obtener_clave_ordenacion(empresa):
-            categoria = empresa['OPORTUNIDAD']
-            
-            # Se ajustan las prioridades para que "Compra RIESGO" esté en el grupo de compra (valores < 3)
-            # y darle una prioridad interna de 2.5, justo después de las compras fuertes (1 y 2).
-            
-            prioridad = {
-                "Posibilidad de Compra Activada": 1, # Máxima prioridad de compra
-                "Posibilidad de Compra": 2,         # Segunda prioridad de compra
-                "Compra RIESGO": 2.5,               # TERCERA prioridad, pero aún en el grupo de Compra.
-                "VIGILAR": 3,
-                "Riesgo de Venta": 4,
-                "Riesgo de Venta Activada": 5,
-                "Seguirá bajando": 6,
-                "Intermedio": 7,
-            }
-
-            orden_interna = prioridad.get(categoria, 99) # Si no está, al final
-
-            return (orden_interna, empresa['NOMBRE_EMPRESA']) # Se ordena por la clave y luego por nombre
-
-        datos_ordenados = sorted(datos_completos, key=obtener_clave_ordenacion)
+    tabla_html_contenido = ""
+    previous_orden_grupo = None
+    
+    for i, data in enumerate(datos_ordenados):
+        current_orden_grupo = obtener_clave_ordenacion(data)[0]
         
-        # --- Fin de la lógica de ordenación MODIFICADA ---
-        now_utc = datetime.utcnow()
-        hora_actual = (now_utc + timedelta(hours=2)).strftime('%H:%M')
+        # Lógica para determinar el encabezado de categoría
+        es_primera_fila = previous_orden_grupo is None
+        es_cambio_grupo = current_orden_grupo != previous_orden_grupo
         
-        # ATENCIÓN: No se modifica la estructura de la tabla HTML para mantener el formato original.
-        # Las nuevas advertencias se integran en la columna 'Oportunidad' y en el detalle de 'Observaciones'.
-        html_body = f"""
+        if es_primera_fila or es_cambio_grupo:
+            
+            # MODIFICACIÓN DE LA LÓGICA DE ENCABEZADO
+            if current_orden_grupo in [1, 2, 2.5]: # Grupo de Compra (incluye Compra RIESGO con 2.5)
+                if previous_orden_grupo is None or previous_orden_grupo not in [1, 2, 2.5]:
+                    tabla_html_contenido += """
+                        <tr class="category-header"><td colspan="6">OPORTUNIDADES DE COMPRA</td></tr>
+                    """
+            elif current_orden_grupo in [3, 4, 5]: # Grupo de Venta/Vigilancia
+                if previous_orden_grupo is None or previous_orden_grupo not in [3, 4, 5]:
+                    tabla_html_contenido += """
+                        <tr class="category-header"><td colspan="6">ATENTOS A VENDER/VIGILANCIA</td></tr>
+                    """
+            elif current_orden_grupo in [6, 7]: # Grupo Intermedio
+                if previous_orden_grupo is None or previous_orden_grupo not in [6, 7]:
+                    tabla_html_contenido += """
+                        <tr class="category-header"><td colspan="6">OTRAS EMPRESAS SIN MOVIMIENTOS</td></tr>
+                    """
+                    
+            # Poner un separador si no es la primera fila y hay cambio de grupo
+            if not es_primera_fila and es_cambio_grupo:
+                tabla_html_contenido += """
+                    <tr class="separator-row"><td colspan="6"></td></tr>
+                """
+
+        # Agregar las filas de la empresa
+        tabla_html_contenido += generar_fila_reporte(data)
+        previous_orden_grupo = current_orden_grupo
+
+    # --- INICIO DEL GRAN STRING HTML ---
+    now_utc = datetime.utcnow()
+    hora_actual = (now_utc + timedelta(hours=2)).strftime('%H:%M')
+    
+    html_body = f"""
         <html>
         <head>
-            <title>Resumen Diario de Oportunidades - {datetime.today().strftime('%d/%m/%Y')} {hora_actual}</title>
+            <title>Reporte Premium IBEXIA - {datetime.today().strftime('%d/%m/%Y')}</title>
             <style>
                 body {{
                     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -702,7 +783,7 @@ def generar_reporte():
                 }}
                 .compra {{ color: #28a745; font-weight: bold; }}
                 .venta {{ color: #dc3545; font-weight: bold; }}
-                .riesgo-compra {{ color: #ffc107; font-weight: bold; }} /* Nuevo estilo para Compra RIESGO */
+                .riesgo-compra {{ color: #ffc107; font-weight: bold; }} 
                 .comprado-si {{ background-color: #28a745; color: white; font-weight: bold; }}
                 .bg-green {{ background-color: #d4edda; color: #155724; }}
                 .bg-red {{ background-color: #f8d7da; color: #721c24; }}
@@ -712,7 +793,7 @@ def generar_reporte():
                 .small-text {{ font-size: 0.7em; color: #6c757d; }}
                 .green-cell {{ background-color: #d4edda; }}
                 .red-cell {{ background-color: #f8d7da; }}
-                .yellow-cell {{ background-color: #fff3cd; }} /* Nuevo estilo para celda de riesgo */
+                .yellow-cell {{ background-color: #fff3cd; }} 
                 .separator-row td {{ background-color: #e9ecef; height: 3px; padding: 0; border: none; }}
                 .category-header td {{
                     background-color: #495057;
@@ -748,7 +829,8 @@ def generar_reporte():
         </head>
         <body>
             <div class="main-container">
-                <h2 class="text-center">Resumen Diario de Oportunidades ordenadas por prioridad - {datetime.today().strftime('%d/%m/%Y')} {hora_actual}</h2>
+                <h2 class="text-center">👋 ¡Hola, {nombre_usuario}! Tu Reporte Premium de Oportunidades - {datetime.today().strftime('%d/%m/%Y')} {hora_actual}</h2>
+                <p>Aquí tienes el análisis actualizado de las {len(datos_ordenados)} empresas que has elegido:</p>
                 
                 <div id="search-container">
                     <input type="text" id="searchInput" placeholder="Buscar por nombre de empresa...">
@@ -771,123 +853,7 @@ def generar_reporte():
                             </tr>
                         </thead>
                         <tbody>
-        """
-        
-        if not datos_ordenados:
-            html_body += """
-                            <tr><td colspan="6">No se encontraron empresas con datos válidos hoy.</td></tr>
-            """
-        else:
-            previous_orden_grupo = None
-            for i, data in enumerate(datos_ordenados):
-                
-                current_orden_grupo = obtener_clave_ordenacion(data)[0]
-                
-                # Lógica para determinar el encabezado de categoría
-                es_primera_fila = previous_orden_grupo is None
-                es_cambio_grupo = current_orden_grupo != previous_orden_grupo
-                
-                if es_primera_fila or es_cambio_grupo:
-                    
-                    # MODIFICACIÓN DE LA LÓGICA DE ENCABEZADO
-                    if current_orden_grupo in [1, 2, 2.5]: # Grupo de Compra (incluye Compra RIESGO con 2.5)
-                        if previous_orden_grupo is None or previous_orden_grupo not in [1, 2, 2.5]:
-                            html_body += """
-                                <tr class="category-header"><td colspan="6">OPORTUNIDADES DE COMPRA</td></tr>
-                            """
-                    elif current_orden_grupo in [3, 4, 5]: # Grupo de Venta/Vigilancia
-                        if previous_orden_grupo is None or previous_orden_grupo not in [3, 4, 5]:
-                            html_body += """
-                                <tr class="category-header"><td colspan="6">ATENTOS A VENDER/VIGILANCIA</td></tr>
-                            """
-                    elif current_orden_grupo in [6, 7]: # Grupo Intermedio
-                        if previous_orden_grupo is None or previous_orden_grupo not in [6, 7]:
-                            html_body += """
-                                <tr class="category-header"><td colspan="6">OTRAS EMPRESAS SIN MOVIMIENTOS</td></tr>
-                            """
-                            
-                    # Poner un separador si no es la primera fila y hay cambio de grupo
-                    if not es_primera_fila and es_cambio_grupo:
-                        html_body += """
-                            <tr class="separator-row"><td colspan="6"></td></tr>
-                        """
-
-                # Lógica de corrección para el enlace
-                nombre_empresa_url = None
-                for nombre, ticker_val in tickers.items():
-                    if ticker_val == data['TICKER']:
-                        nombre_empresa_url = nombre
-                        break
-                
-                if nombre_empresa_url:
-                    empresa_link = f'https://ibexia.es/category/{nombre_empresa_url.lower()}/'
-                else:
-                    empresa_link = '#'
-                
-                nombre_con_precio = f"<a href='{empresa_link}' target='_blank' style='text-decoration:none; color:inherit;'><div class='stacked-text'><b>{data['NOMBRE_EMPRESA']}</b><br>({formatear_numero(data['PRECIO_ACTUAL'])}€)</div></a>"
-
-                # Ajuste de clases para el estado 'Compra RIESGO' (texto amarillo, celda amarilla)
-                if "compra" in data['OPORTUNIDAD'].lower() and "riesgo" not in data['OPORTUNIDAD'].lower():
-                    clase_oportunidad = "compra"
-                    celda_empresa_class = "green-cell"
-                elif "venta" in data['OPORTUNIDAD'].lower():
-                    clase_oportunidad = "venta"
-                    celda_empresa_class = "red-cell"
-                elif "vigilar" in data['OPORTUNIDAD'].lower():
-                    clase_oportunidad = "vigilar"
-                    celda_empresa_class = ""
-                elif "riesgo" in data['OPORTUNIDAD'].lower():
-                    clase_oportunidad = "riesgo-compra"
-                    celda_empresa_class = "yellow-cell"
-                else:
-                    clase_oportunidad = ""
-                    celda_empresa_class = ""
-                
-                
-                observaciones = generar_observaciones(data)
-                
-                # --- FILAS DE REPORTE CON OBSERVACIÓN SEMANAL EN DETALLE ---
-                html_body += f"""
-                            <tr class="main-row" data-index="{i}">
-                                <td class="{celda_empresa_class}">{nombre_con_precio}</td>
-                                <td>{data['TENDENCIA_ACTUAL']}</td>
-                                <td class="{clase_oportunidad}">{data['OPORTUNIDAD']}</td>
-                                <td>{data['COMPRA_SI']}</td>
-                                <td>{data['VENDE_SI']}</td>
-                                <td><span class="expand-button" onclick="toggleDetails({i})">Ver más...</span></td>
-                            </tr>
-                            <tr class="collapsible-row detailed-row-{i}">
-                                <td colspan="6">
-                                    <div style="display:flex; justify-content:space-around; align-items:flex-start; padding: 10px;">
-                                        <div style="flex-basis: 25%; text-align:left;">
-                                            <b>EMA</b><br>
-                                            <span style="font-weight:bold;">{formatear_numero(data['VALOR_EMA'])}€</span><br>
-                                            ({data['TIPO_EMA']})
-                                        </div>
-                                        <div style="flex-basis: 25%; text-align:left;">
-                                            <b>Soportes</b><br>
-                                            S1: {formatear_numero(data['SOPORTE_1'])}€<br>
-                                            S2: {formatear_numero(data['SOPORTE_2'])}€
-                                        </div>
-                                        <div style="flex-basis: 25%; text-align:left;">
-                                            <b>Resistencias</b><br>
-                                            R1: {formatear_numero(data['RESISTENCIA_1'])}€<br>
-                                            R2: {formatear_numero(data['RESISTENCIA_2'])}€
-                                        </div>
-                                        <div style="flex-basis: 25%; text-align:left; font-size:0.9em;">
-                                            <b>Análisis Semanal (SMI)</b><br>
-                                            {data['OBSERVACION_SEMANAL']}
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr class="observaciones-row">
-                                <td colspan="6">{observaciones}</td>
-                            </tr>
-                """
-                previous_orden_grupo = current_orden_grupo
-        
-        html_body += """
+                            {tabla_html_contenido}
                         </tbody>
                     </table>
                 </div>
@@ -897,8 +863,7 @@ def generar_reporte():
             </div>
 
             <script>
-                // Función de filtrado
-                function filterTable() {
+                function filterTable() {{
                     var input, filter, table, tr, i, txtValue;
                     input = document.getElementById("searchInput");
                     filter = input.value.toUpperCase();
@@ -906,81 +871,203 @@ def generar_reporte():
                     var tbody = table.querySelector('tbody');
                     tr = tbody.getElementsByTagName("tr");
 
-                    for (i = 0; i < tr.length; i++) {
-                        if (tr[i].classList.contains("separator-row") || tr[i].classList.contains("category-header")) {
+                    for (i = 0; i < tr.length; i++) {{
+                        if (tr[i].classList.contains("separator-row") || tr[i].classList.contains("category-header")) {{
                             continue;
-                        }
+                        }}
 
-                        // Get the company name cell from the main row
-                        if (tr[i].classList.contains("main-row")) {
+                        if (tr[i].classList.contains("main-row")) {{
                             var companyCell = tr[i].getElementsByTagName("td")[0];
-                            var observationsRow = tr[i + 2];
                             var detailedRow = tr[i + 1];
+                            var observationsRow = tr[i + 2];
+                            
 
-                            if (companyCell) {
+                            if (companyCell) {{
                                 txtValue = companyCell.textContent || companyCell.innerText;
-                                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                                if (txtValue.toUpperCase().indexOf(filter) > -1) {{
                                     tr[i].style.display = "";
-                                    if (observationsRow) {
+                                    if (observationsRow) {{
                                         observationsRow.style.display = "";
-                                    }
-                                    if (detailedRow) {
-                                        // Ensure detailed row is hidden by default after filter
+                                    }}
+                                    if (detailedRow) {{
                                         detailedRow.style.display = 'none';
-                                    }
-                                } else {
+                                    }}
+                                }} else {{
                                     tr[i].style.display = "none";
-                                    if (observationsRow) {
+                                    if (observationsRow) {{
                                         observationsRow.style.display = "none";
-                                    }
-                                    if (detailedRow) {
+                                    }}
+                                    if (detailedRow) {{
                                         detailedRow.style.display = "none";
-                                    }
-                                }
-                            }
-                        } else if (tr[i].classList.contains("collapsible-row") || tr[i].classList.contains("observaciones-row")) {
-                            // Hide these rows by default until the parent is shown
+                                    }}
+                                }}
+                            }}
+                        }} else if (tr[i].classList.contains("collapsible-row") || tr[i].classList.contains("observaciones-row")) {{
                             tr[i].style.display = "none";
-                        }
-                    }
-                }
+                        }}
+                    }}
+                }}
                 
-                // Función de acordeón para las filas individuales
-                function toggleDetails(index) {
+                function toggleDetails(index) {{
                     var detailedRow = document.querySelector('.detailed-row-' + index);
-                    if (detailedRow) {
+                    if (detailedRow) {{
                         detailedRow.style.display = detailedRow.style.display === "table-row" ? "none" : "table-row";
-                    }
-                }
+                    }}
+                }}
                 
-                // Asegurar que el script se ejecute cuando el DOM esté listo
-                document.addEventListener('DOMContentLoaded', function() {
+                document.addEventListener('DOMContentLoaded', function() {{
                     const searchInput = document.getElementById("searchInput");
-                    if (searchInput) {
+                    if (searchInput) {{
                         searchInput.addEventListener("keyup", filterTable);
-                    }
+                    }}
 
                     const tableContainer = document.querySelector('.table-container');
                     const scrollTop = document.getElementById('scroll-top');
                     
-                    if (tableContainer && scrollTop) {
-                        scrollTop.addEventListener('scroll', () => {
+                    if (tableContainer && scrollTop) {{
+                        scrollTop.addEventListener('scroll', () => {{
                             tableContainer.scrollLeft = scrollTop.scrollLeft;
-                        });
+                        }});
                         
-                        tableContainer.addEventListener('scroll', () => {
+                        tableContainer.addEventListener('scroll', () => {{
                             scrollTop.scrollLeft = tableContainer.scrollLeft;
-                        });
-                    }
-                });
+                        }});
+                    }}
+                }});
             </script>
         </body>
         </html>
-        """
+    """
+    # --- FIN DEL GRAN STRING HTML ---
+    return html_body
 
+# ----------------------------------------------------------------------
+# 4. FUNCIÓN MODIFICADA: ENVÍO DE CORREO
+# Ahora acepta el destinatario del usuario como argumento.
+# ----------------------------------------------------------------------
+def enviar_email_con_adjunto(html_body, asunto_email, destinatario_usuario):
+    """Envía el correo al destinatario especificado."""
+    # ATENCIÓN: Se usa el remitente fijo y la contraseña que ya tenías
+    remitente = "xumkox@gmail.com"
+    password = "kdgz lvdo wqvt vfkt" 
+
+    # Generar un nombre de archivo único para evitar conflictos entre envíos
+    html_filename = f"analisis_premium_{destinatario_usuario.split('@')[0]}_{datetime.now().strftime('%Y%m%d%H%M%S')}.html"
+
+    # Generar el archivo HTML
+    with open(html_filename, "w", encoding="utf-8") as f:
+        f.write(html_body)
+
+    msg = MIMEMultipart()
+    msg['From'] = remitente
+    # *** CAMBIO CLAVE: Usar el destinatario_usuario pasado como argumento ***
+    msg['To'] = destinatario_usuario 
+    msg['Subject'] = asunto_email
+
+    # Adjuntar el archivo HTML generado
+    with open(html_filename, "rb") as attachment:
+        part = MIMEBase("application", "octet-stream")
+        part.set_payload(attachment.read())
+
+    encoders.encode_base64(part)
+    part.add_header(
+        "Content-Disposition",
+        f"attachment; filename={html_filename}",
+    )
+    msg.attach(part)
+
+    try:
+        servidor = smtplib.SMTP('smtp.gmail.com', 587)
+        servidor.starttls()
+        servidor.login(remitente, password)
+        # *** CAMBIO CLAVE: Enviar al destinatario_usuario ***
+        servidor.sendmail(remitente, destinatario_usuario, msg.as_string()) 
+        servidor.quit()
+        print(f"✅ Correo enviado a {destinatario_usuario} con el asunto: {asunto_email}")
+        os.remove(html_filename)
+    except Exception as e:
+        print(f"❌ Error al enviar el correo a {destinatario_usuario}: {e}")
+
+# ----------------------------------------------------------------------
+# 5. FUNCIÓN REESTRUCTURADA: LÓGICA PRINCIPAL
+# ----------------------------------------------------------------------
+def generar_reporte():
+    try:
+        # 1. ANÁLISIS GLOBAL: Procesar TODAS las 80+ empresas una sola vez
+        print("Iniciando análisis global de todas las empresas...")
+        all_company_tickers = list(tickers.values())
+        datos_completos_por_ticker = {}
         
-        asunto = f"🔔 Alertas y Oportunidades IBEXIA: {len(datos_ordenados)} oportunidades detectadas hoy {datetime.today().strftime('%d/%m/%Y')}"
-        enviar_email_con_adjunto(html_body, asunto)
+        for empresa_nombre, ticker in tickers.items():
+            # print(f"🔎 Analizando {empresa_nombre} ({ticker})...")
+            try:
+                data = obtener_datos_yfinance(ticker)
+                if data:
+                    datos_completos_por_ticker[ticker] = clasificar_empresa(data)
+            except Exception as e:
+                print(f"❌ Error al procesar {ticker} en el análisis global: {e}")
+            # time.sleep(1) # Puedes ajustar el delay si es necesario
+
+        # 2. PROCESAR USUARIOS Y ENVIAR PERSONALIZADO
+        print("\nIniciando envíos personalizados a usuarios premium...")
+        # Llama a la función que lee las 4 columnas (Nombre, Email, Plan, Empresas)
+        usuarios_premium = leer_google_sheets()
+
+        for usuario in usuarios_premium:
+            try:
+                # Desestructurar los 4 campos esperados
+                if len(usuario) < 4:
+                    print(f"⚠️ Fila de usuario incompleta: {usuario}. Saltando...")
+                    continue
+                    
+                nombre_usuario, email_usuario, plan_usuario, empresas_str = usuario
+                
+                print(f"\n⚙️ Procesando usuario: {nombre_usuario} ({email_usuario}) - Plan: {plan_usuario}")
+                
+                # 3. DETERMINAR LOS TICKERS ESPECÍFICOS PARA ESTE USUARIO
+                plan_limpio = plan_usuario.upper().strip()
+                
+                if plan_limpio == 'LOTE':
+                    # Si es LOTE, usa todos los datos analizados
+                    datos_para_reporte = list(datos_completos_por_ticker.values())
+                else:
+                    # Si es plan 3 o 10, usa la lista de empresas (separadas por coma)
+                    
+                    # Convertir la cadena de empresas a una lista de tickers válidos
+                    nombres_elegidos = [n.strip() for n in empresas_str.split(',')]
+                    tickers_del_usuario = [
+                        tickers[nombre_largo] 
+                        for nombre_largo in nombres_elegidos 
+                        if nombre_largo in tickers # Asegura que el nombre sea una clave válida
+                    ]
+                    
+                    # Filtrar los datos analizados previamente (paso 1)
+                    datos_para_reporte = [
+                        datos_completos_por_ticker[t] 
+                        for t in tickers_del_usuario 
+                        if t in datos_completos_por_ticker # Solo si se analizó con éxito
+                    ]
+                
+                if not datos_para_reporte:
+                    print(f"⚠️ Usuario {nombre_usuario} no tiene empresas válidas o no se encontraron datos. Saltando envío...")
+                    continue
+                    
+                # 4. ORDENAR DATOS Y GENERAR HTML PERSONALIZADO
+                datos_ordenados = sorted(datos_para_reporte, key=obtener_clave_ordenacion)
+
+                # Generar el HTML personalizado (llama a la nueva función)
+                html_body = generar_html_reporte(datos_ordenados, nombre_usuario)
+
+                # 5. ENVIAR CORREO PERSONALIZADO
+                asunto = f"⭐ {nombre_usuario}, tu Reporte Premium de Oportunidades ({len(datos_ordenados)} empresas analizadas hoy)"
+                
+                # Llamada a la función modificada con el email del usuario
+                enviar_email_con_adjunto(html_body, asunto, email_usuario) 
+
+            except Exception as e:
+                print(f"❌ Error al procesar el usuario {usuario}: {e}")
+
+        print("\nProceso de envío de correos premium completado.")
 
     except Exception as e:
         print(f"❌ Error al ejecutar el script principal: {e}")
