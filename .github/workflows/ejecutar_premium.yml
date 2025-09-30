@@ -1,0 +1,36 @@
+name: EJECUTAR PREMIUM
+
+on:
+  workflow_dispatch: # Trigger manual
+  schedule:
+    # Horario de invierno (CET): 9:30, 12:30, 17:00
+    - cron: '30 6,9,14 * * *'
+
+
+jobs:
+  leer_y_generar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@v3
+
+      - name: Instalar Python y dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install --upgrade google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client google-generativeai
+
+          pip install yfinance pandas
+          pip install yfinance pandas feedparser
+          
+      - name: Install pandas-ta  # Nuevo paso
+        run: pip install pandas-ta # Comando para instalar la librería
+        
+      - name: Ejecutar script para leer Google Sheets y generar contenido con Gemini
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          RANGE_NAME: 'A1:C10' # Ajusta si lo deseas
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python Premium.py
