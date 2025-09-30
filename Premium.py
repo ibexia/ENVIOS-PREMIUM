@@ -121,7 +121,7 @@ def leer_google_sheets():
     
     # Rango: A: Nombre, B: Email, C: Plan, D: Empresas
     # Asumo Hoja1, empezando en Fila 2 (A2) para saltar el encabezado
-    range_name = 'Hoja1!A2:D' 
+    range_name = 'Hoja 1!A2:D' 
 
     service = build('sheets', 'v4', credentials=creds)
     sheet = service.spreadsheets()
