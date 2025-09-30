@@ -26,13 +26,8 @@ import pandas_ta as ta
 SERVICE_ACCOUNT_FILE = 'service_account.json' 
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
 # ID DE LA HOJA DE CÁLCULO
-SPREADSHEET_ID = '1234567890abcdefghijklmnopqrstuvwxyz' # ¡REEMPLAZAR CON TU ID REAL!
-
-# --- Google Generative AI (Gemini) Config ---
-# Debe estar seteado como variable de entorno
-# GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-# if GEMINI_API_KEY:
-#     genai.configure(api_key=GEMINI_API_KEY)
+# ¡RECUERDA REEMPLAZAR ESTE ID CON TU ID REAL!
+SPREADSHEET_ID = '1234567890abcdefghijklmnopqrstuvwxyz' 
 
 # --- Diccionario de Tickers (Ejemplo para IBEX) ---
 # Se asume que este diccionario es el completo de tu análisis (80+ empresas)
@@ -252,8 +247,7 @@ def leer_google_sheets():
             SERVICE_ACCOUNT_FILE, scopes=SCOPES)
         service = build('sheets', 'v4', credentials=creds)
 
-        # Nombre de la hoja y rango (Ajustar si es necesario)
-        # Se asume que tu pestaña se llama 'Usuarios' y la data empieza en A2
+        # Nombre de la hoja y rango 
         range_name = 'Usuarios!A2:D999' 
         
         # Llama a la API de Sheets
@@ -548,62 +542,63 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                         <tbody>
         """
         
-        if not datos_ordenados:
-            html_body += """
-                            <tr><td colspan="5">No se encontraron empresas con datos válidos hoy.</td></tr>
-            """
-        else:
-            previous_orden_grupo = None
-            for i, data in enumerate(datos_ordenados):
-                
-                current_orden_grupo = obtener_clave_ordenacion(data)[0]
-                
-                # Lógica para determinar el encabezado de categoría
-                es_primera_fila = previous_orden_grupo is None
-                es_cambio_grupo = current_orden_grupo != previous_orden_grupo
-                
-                if es_primera_fila or es_cambio_grupo:
-                    
-                    # Colspan corregido a 5
-                    if current_orden_grupo in [1, 2, 2.5]: 
-                        if previous_orden_grupo is None or previous_orden_grupo not in [1, 2, 2.5]:
-                            html_body += """
-                                <tr class="category-header"><td colspan="5">OPORTUNIDADES DE COMPRA</td></tr>
-                            """
-                    elif current_orden_grupo in [3, 4, 5]:
-                        if previous_orden_grupo is None or previous_orden_grupo not in [3, 4, 5]:
-                            html_body += """
-                                <tr class="category-header"><td colspan="5">ATENTOS A VENDER/VIGILANCIA</td></tr>
-                            """
-                    elif current_orden_grupo in [6, 7]:
-                        if previous_orden_grupo is None or previous_orden_grupo not in [6, 7]:
-                            html_body += """
-                                <tr class="category-header"><td colspan="5">OTRAS EMPRESAS SIN MOVIMIENTOS</td></tr>
-                            """
-                            
-                    # Colspan corregido a 5
-                    if not es_primera_fila and es_cambio_grupo:
-                        html_body += """
-                            <tr class="separator-row"><td colspan="5"></td></tr>
-                        """
-                
-                html_body += generar_fila_reporte(data) 
-                
-                previous_orden_grupo = current_orden_grupo
-        
+    # --- ZONA CORREGIDA DEL ERROR DE INDENTACIÓN (Línea 551) ---
+    if not datos_ordenados:
         html_body += """
-                        </tbody>
-                    </table>
-                </div>
+                        <tr><td colspan="5">No se encontraron empresas con datos válidos hoy.</td></tr>
+        """
+    else:
+        previous_orden_grupo = None
+        for i, data in enumerate(datos_ordenados):
+            
+            current_orden_grupo = obtener_clave_ordenacion(data)[0]
+            
+            # Lógica para determinar el encabezado de categoría
+            es_primera_fila = previous_orden_grupo is None
+            es_cambio_grupo = current_orden_grupo != previous_orden_grupo
+            
+            if es_primera_fila or es_cambio_grupo:
                 
-                <br>
-                <p class="disclaimer"><strong>Aviso:</strong> El algoritmo de trading se basa en indicadores técnicos y no garantiza la rentabilidad. Utiliza esta información con tu propio análisis y criterio. ¡Feliz trading!</p>
+                # Colspan corregido a 5
+                if current_orden_grupo in [1, 2, 2.5]: 
+                    if previous_orden_grupo is None or previous_orden_grupo not in [1, 2, 2.5]:
+                        html_body += """
+                            <tr class="category-header"><td colspan="5">OPORTUNIDADES DE COMPRA</td></tr>
+                        """
+                elif current_orden_grupo in [3, 4, 5]:
+                    if previous_orden_grupo is None or previous_orden_grupo not in [3, 4, 5]:
+                        html_body += """
+                            <tr class="category-header"><td colspan="5">ATENTOS A VENDER/VIGILANCIA</td></tr>
+                        """
+                elif current_orden_grupo in [6, 7]:
+                    if previous_orden_grupo is None or previous_orden_grupo not in [6, 7]:
+                        html_body += """
+                            <tr class="category-header"><td colspan="5">OTRAS EMPRESAS SIN MOVIMIENTOS</td></tr>
+                        """
+                        
+                # Colspan corregido a 5
+                if not es_primera_fila and es_cambio_grupo:
+                    html_body += """
+                        <tr class="separator-row"><td colspan="5"></td></tr>
+                    """
+            
+            html_body += generar_fila_reporte(data) 
+            
+            previous_orden_grupo = current_orden_grupo
+    
+    html_body += """
+                    </tbody>
+                </table>
             </div>
             
-            </body>
-        </html>
-        """
-        return html_body
+            <br>
+            <p class="disclaimer"><strong>Aviso:</strong> El algoritmo de trading se basa en indicadores técnicos y no garantiza la rentabilidad. Utiliza esta información con tu propio análisis y criterio. ¡Feliz trading!</p>
+        </div>
+        
+        </body>
+    </html>
+    """
+    return html_body
 
 # ----------------------------------------------------------------------
 # 7. FUNCIÓN PRINCIPAL (Generar Reporte y Bucle de Envío)
