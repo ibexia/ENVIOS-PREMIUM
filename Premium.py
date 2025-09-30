@@ -579,9 +579,9 @@ def obtener_clave_ordenacion(empresa):
 # Esta función es la que estaba dentro del bucle de generar_reporte()
 # ----------------------------------------------------------------------
 def generar_fila_reporte(data):
-    """Genera la fila principal, la fila de detalle y la fila de observaciones para una empresa."""
+    """Genera la fila principal, la fila de detalle y la fila de observaciones para una empresa, mostrando el detalle por defecto."""
     
-    # Lógica para determinar el enlace (si quieres mantener la integración con tu web)
+    # Lógica para determinar el enlace (se mantiene)
     global tickers
     nombre_empresa_url = None
     for nombre, ticker_val in tickers.items():
@@ -596,7 +596,6 @@ def generar_fila_reporte(data):
     
     nombre_con_precio = f"<a href='{empresa_link}' target='_blank' style='text-decoration:none; color:inherit;'><div class='stacked-text'><b>{data['NOMBRE_EMPRESA']}</b><br>({formatear_numero(data['PRECIO_ACTUAL'])}€)</div></a>"
 
-    # Ajuste de clases para el estado 'Compra RIESGO'
     if "compra" in data['OPORTUNIDAD'].lower() and "riesgo" not in data['OPORTUNIDAD'].lower():
         clase_oportunidad = "compra"
         celda_empresa_class = "green-cell"
@@ -616,38 +615,34 @@ def generar_fila_reporte(data):
     
     observaciones = generar_observaciones(data)
     
-    # Se utiliza un índice único temporal para el botón de expansión (se usará en el bucle principal)
-    index = random.randint(1000, 9999) 
-    
-    # --- FILAS DE REPORTE CON OBSERVACIÓN SEMANAL EN DETALLE ---
+    # --- FILAS DE REPORTE AHORA VISIBLES POR DEFECTO ---
     return f"""
-                <tr class="main-row" data-index="{index}">
+                <tr class="main-row">
                     <td class="{celda_empresa_class}">{nombre_con_precio}</td>
                     <td>{data['TENDENCIA_ACTUAL']}</td>
                     <td class="{clase_oportunidad}">{data['OPORTUNIDAD']}</td>
                     <td>{data['COMPRA_SI']}</td>
                     <td>{data['VENDE_SI']}</td>
-                    <td><span class="expand-button" onclick="toggleDetails({index})">Ver más...</span></td>
                 </tr>
-                <tr class="collapsible-row detailed-row-{index}">
-                    <td colspan="6">
-                        <div style="display:flex; justify-content:space-around; align-items:flex-start; padding: 10px;">
-                            <div style="flex-basis: 25%; text-align:left;">
-                                <b>EMA</b><br>
+                <tr class="detailed-row-static">
+                    <td colspan="5">
+                        <div style="display:flex; justify-content:space-around; align-items:flex-start; padding: 10px; font-size: 0.9em;">
+                            <div style="flex-basis: 20%; text-align:left;">
+                                <b>EMA (100)</b><br>
                                 <span style="font-weight:bold;">{formatear_numero(data['VALOR_EMA'])}€</span><br>
                                 ({data['TIPO_EMA']})
                             </div>
-                            <div style="flex-basis: 25%; text-align:left;">
+                            <div style="flex-basis: 20%; text-align:left;">
                                 <b>Soportes</b><br>
                                 S1: {formatear_numero(data['SOPORTE_1'])}€<br>
                                 S2: {formatear_numero(data['SOPORTE_2'])}€
                             </div>
-                            <div style="flex-basis: 25%; text-align:left;">
+                            <div style="flex-basis: 20%; text-align:left;">
                                 <b>Resistencias</b><br>
                                 R1: {formatear_numero(data['RESISTENCIA_1'])}€<br>
                                 R2: {formatear_numero(data['RESISTENCIA_2'])}€
                             </div>
-                            <div style="flex-basis: 25%; text-align:left; font-size:0.9em;">
+                            <div style="flex-basis: 40%; text-align:left; font-size:0.9em;">
                                 <b>Análisis Semanal (SMI)</b><br>
                                 {data['OBSERVACION_SEMANAL']}
                             </div>
@@ -655,7 +650,7 @@ def generar_fila_reporte(data):
                     </td>
                 </tr>
                 <tr class="observaciones-row">
-                    <td colspan="6">{observaciones}</td>
+                    <td colspan="5">{observaciones}</td>
                 </tr>
     """
 
@@ -664,55 +659,18 @@ def generar_fila_reporte(data):
 # Contiene el HTML grande y llama a generar_fila_reporte.
 # ----------------------------------------------------------------------
 def generar_html_reporte(datos_ordenados, nombre_usuario):
-    """Genera el cuerpo HTML completo con datos y estilos."""
-
-    tabla_html_contenido = ""
-    previous_orden_grupo = None
+    """Genera el contenido HTML del reporte."""
     
-    for i, data in enumerate(datos_ordenados):
-        current_orden_grupo = obtener_clave_ordenacion(data)[0]
-        
-        # Lógica para determinar el encabezado de categoría
-        es_primera_fila = previous_orden_grupo is None
-        es_cambio_grupo = current_orden_grupo != previous_orden_grupo
-        
-        if es_primera_fila or es_cambio_grupo:
-            
-            # MODIFICACIÓN DE LA LÓGICA DE ENCABEZADO
-            if current_orden_grupo in [1, 2, 2.5]: # Grupo de Compra (incluye Compra RIESGO con 2.5)
-                if previous_orden_grupo is None or previous_orden_grupo not in [1, 2, 2.5]:
-                    tabla_html_contenido += """
-                        <tr class="category-header"><td colspan="6">OPORTUNIDADES DE COMPRA</td></tr>
-                    """
-            elif current_orden_grupo in [3, 4, 5]: # Grupo de Venta/Vigilancia
-                if previous_orden_grupo is None or previous_orden_grupo not in [3, 4, 5]:
-                    tabla_html_contenido += """
-                        <tr class="category-header"><td colspan="6">ATENTOS A VENDER/VIGILANCIA</td></tr>
-                    """
-            elif current_orden_grupo in [6, 7]: # Grupo Intermedio
-                if previous_orden_grupo is None or previous_orden_grupo not in [6, 7]:
-                    tabla_html_contenido += """
-                        <tr class="category-header"><td colspan="6">OTRAS EMPRESAS SIN MOVIMIENTOS</td></tr>
-                    """
-                    
-            # Poner un separador si no es la primera fila y hay cambio de grupo
-            if not es_primera_fila and es_cambio_grupo:
-                tabla_html_contenido += """
-                    <tr class="separator-row"><td colspan="6"></td></tr>
-                """
-
-        # Agregar las filas de la empresa
-        tabla_html_contenido += generar_fila_reporte(data)
-        previous_orden_grupo = current_orden_grupo
-
-    # --- INICIO DEL GRAN STRING HTML ---
     now_utc = datetime.utcnow()
-    hora_actual = (now_utc + timedelta(hours=2)).strftime('%H:%M')
-    
+    # Usar la misma lógica de tiempo para el título interno
+    time_offset = timedelta(hours=2) # Asumo CEST/CET +2 horas
+    local_time = now_utc + time_offset
+    hora_actual = local_time.strftime('%H:%M')
+
     html_body = f"""
         <html>
         <head>
-            <title>Reporte Premium IBEXIA - {datetime.today().strftime('%d/%m/%Y')}</title>
+            <title>Resumen Diario de Oportunidades - {datetime.today().strftime('%d/%m/%Y')} {hora_actual}</title>
             <style>
                 body {{
                     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -739,29 +697,20 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                     text-align: center;
                     font-size: 0.9em;
                 }}
-                #search-container {{
-                    margin-bottom: 15px;
-                }}
-                #searchInput {{
-                    width: 100%;
-                    padding: 8px;
-                    font-size: 0.9em;
-                    border: 1px solid #ced4da;
-                    border-radius: 4px;
-                    box-sizing: border-box;
-                }}
+                /* --- ELEMENTOS DE BÚSQUEDA Y SCROLL ELIMINADOS DE AQUÍ --- */
                 .table-container {{
                     overflow-x: auto;
                     overflow-y: auto;
-                    height: 70vh;
+                    max-height: 70vh; /* Se usa max-height en lugar de height fijo */
                     position: relative;
                 }}
                 table {{
                     width: 100%;
-                    table-layout: fixed;
+                    /* Se elimina table-layout: fixed; para que el contenido fluya mejor en email */
                     margin: 10px auto 0 auto;
                     border-collapse: collapse;
                     font-size: 0.85em;
+                    min-width: 600px; /* Asegura un mínimo de ancho */
                 }}
                 th, td {{
                     border: 1px solid #e9ecef;
@@ -815,29 +764,15 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                 }}
                 .vigilar {{ color: #ffc107; font-weight: bold; }}
                 
-                .collapsible-row {{
-                    display: none;
-                }}
-                .expand-button {{
-                    cursor: pointer;
-                    color: #007bff;
-                    font-weight: bold;
-                    text-decoration: underline;
+                /* Las filas detalladas ahora son visibles por defecto sin JavaScript */
+                .collapsible-row, .expand-button {{
+                    display: none; 
                 }}
             </style>
         </head>
         <body>
             <div class="main-container">
-                <h2 class="text-center">👋 ¡Hola, {nombre_usuario}! Tu Reporte Premium de Oportunidades - {datetime.today().strftime('%d/%m/%Y')} {hora_actual}</h2>
-                <p>Aquí tienes el análisis actualizado de las {len(datos_ordenados)} empresas que has elegido:</p>
-                
-                <div id="search-container">
-                    <input type="text" id="searchInput" placeholder="Buscar por nombre de empresa...">
-                </div>
-                
-                <div id="scroll-top" style="overflow-x: auto;">
-                    <div style="min-width: 1400px;">&nbsp;</div>
-                </div>
+                <h2 class="text-center">Resumen Diario de Oportunidades ordenadas por prioridad - {datetime.today().strftime('%d/%m/%Y')} {hora_actual}</h2>
                 
                 <div class="table-container">
                     <table id="myTable">
@@ -848,11 +783,58 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                                 <th>Oportunidad</th>
                                 <th>Compra si...</th>
                                 <th>Vende si...</th>
-                                <th>Análisis detallado</th>
-                            </tr>
+                                </tr>
                         </thead>
                         <tbody>
-                            {tabla_html_contenido}
+        """
+        
+        if not datos_ordenados:
+            html_body += """
+                            <tr><td colspan="5">No se encontraron empresas con datos válidos hoy.</td></tr>
+            """
+        else:
+            previous_orden_grupo = None
+            for i, data in enumerate(datos_ordenados):
+                
+                current_orden_grupo = obtener_clave_ordenacion(data)[0]
+                
+                # Lógica para determinar el encabezado de categoría
+                es_primera_fila = previous_orden_grupo is None
+                es_cambio_grupo = current_orden_grupo != previous_orden_grupo
+                
+                if es_primera_fila or es_cambio_grupo:
+                    
+                    # Colspan corregido a 5
+                    if current_orden_grupo in [1, 2, 2.5]: 
+                        if previous_orden_grupo is None or previous_orden_grupo not in [1, 2, 2.5]:
+                            html_body += """
+                                <tr class="category-header"><td colspan="5">OPORTUNIDADES DE COMPRA</td></tr>
+                            """
+                    elif current_orden_grupo in [3, 4, 5]:
+                        if previous_orden_grupo is None or previous_orden_grupo not in [3, 4, 5]:
+                            html_body += """
+                                <tr class="category-header"><td colspan="5">ATENTOS A VENDER/VIGILANCIA</td></tr>
+                            """
+                    elif current_orden_grupo in [6, 7]:
+                        if previous_orden_grupo is None or previous_orden_grupo not in [6, 7]:
+                            html_body += """
+                                <tr class="category-header"><td colspan="5">OTRAS EMPRESAS SIN MOVIMIENTOS</td></tr>
+                            """
+                            
+                    # Colspan corregido a 5
+                    if not es_primera_fila and es_cambio_grupo:
+                        html_body += """
+                            <tr class="separator-row"><td colspan="5"></td></tr>
+                        """
+                # ... (resto de la lógica de preparación de datos, sin cambios)
+                
+                # ... (Se llama a generar_fila_reporte que ya tiene 5 columnas)
+                html_body += generar_fila_reporte(data) # Usamos la nueva función con 5 columnas
+                
+                previous_orden_grupo = current_orden_grupo
+        
+        # El resto de la función se simplifica y elimina el bloque <script>
+        html_body += """
                         </tbody>
                     </table>
                 </div>
@@ -860,85 +842,11 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                 <br>
                 <p class="disclaimer"><strong>Aviso:</strong> El algoritmo de trading se basa en indicadores técnicos y no garantiza la rentabilidad. Utiliza esta información con tu propio análisis y criterio. ¡Feliz trading!</p>
             </div>
-
-            <script>
-                function filterTable() {{
-                    var input, filter, table, tr, i, txtValue;
-                    input = document.getElementById("searchInput");
-                    filter = input.value.toUpperCase();
-                    table = document.getElementById("myTable");
-                    var tbody = table.querySelector('tbody');
-                    tr = tbody.getElementsByTagName("tr");
-
-                    for (i = 0; i < tr.length; i++) {{
-                        if (tr[i].classList.contains("separator-row") || tr[i].classList.contains("category-header")) {{
-                            continue;
-                        }}
-
-                        if (tr[i].classList.contains("main-row")) {{
-                            var companyCell = tr[i].getElementsByTagName("td")[0];
-                            var detailedRow = tr[i + 1];
-                            var observationsRow = tr[i + 2];
-                            
-
-                            if (companyCell) {{
-                                txtValue = companyCell.textContent || companyCell.innerText;
-                                if (txtValue.toUpperCase().indexOf(filter) > -1) {{
-                                    tr[i].style.display = "";
-                                    if (observationsRow) {{
-                                        observationsRow.style.display = "";
-                                    }}
-                                    if (detailedRow) {{
-                                        detailedRow.style.display = 'none';
-                                    }}
-                                }} else {{
-                                    tr[i].style.display = "none";
-                                    if (observationsRow) {{
-                                        observationsRow.style.display = "none";
-                                    }}
-                                    if (detailedRow) {{
-                                        detailedRow.style.display = "none";
-                                    }}
-                                }}
-                            }}
-                        }} else if (tr[i].classList.contains("collapsible-row") || tr[i].classList.contains("observaciones-row")) {{
-                            tr[i].style.display = "none";
-                        }}
-                    }}
-                }}
-                
-                function toggleDetails(index) {{
-                    var detailedRow = document.querySelector('.detailed-row-' + index);
-                    if (detailedRow) {{
-                        detailedRow.style.display = detailedRow.style.display === "table-row" ? "none" : "table-row";
-                    }}
-                }}
-                
-                document.addEventListener('DOMContentLoaded', function() {{
-                    const searchInput = document.getElementById("searchInput");
-                    if (searchInput) {{
-                        searchInput.addEventListener("keyup", filterTable);
-                    }}
-
-                    const tableContainer = document.querySelector('.table-container');
-                    const scrollTop = document.getElementById('scroll-top');
-                    
-                    if (tableContainer && scrollTop) {{
-                        scrollTop.addEventListener('scroll', () => {{
-                            tableContainer.scrollLeft = scrollTop.scrollLeft;
-                        }});
-                        
-                        tableContainer.addEventListener('scroll', () => {{
-                            scrollTop.scrollLeft = tableContainer.scrollLeft;
-                        }});
-                    }}
-                }});
-            </script>
-        </body>
+            
+            </body>
         </html>
-    """
-    # --- FIN DEL GRAN STRING HTML ---
-    return html_body
+        """
+        return html_body
 
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
@@ -954,24 +862,26 @@ def enviar_email(html_content, asunto_email, destinatario_usuario, nombre_usuari
     # ESTO DEFINE EL LOGIN REAL QUE TIENE LA CLAVE DE APLICACIÓN DE GMAIL
     remitente_login = "xumkox@gmail.com"
     password = "kdgz lvdo wqvt vfkt" 
-
-    # 1. Crear el Saludo y el Cuerpo Completo del Mensaje (¡AHORA MÁS PROFESIONAL!)
+    # 1. Crear el Saludo y el Cuerpo Completo del Mensaje (¡AHORA CON ALINEACIÓN A LA IZQUIERDA!)
     saludo_profesional = f"""
-    <p style="font-size: 1.1em; color: #000; margin-bottom: 20px;">
-        **Estimado/a {nombre_usuario},**
-    </p>
-    <p style="font-size: 1em; color: #000; margin-bottom: 25px;">
-        Nos complace presentarte tu **Reporte Premium de Oportunidades Bursátiles** de IBEXIA, correspondiente al **{fecha_asunto} a las {hora_asunto} horas**.
-        Este análisis exclusivo se basa en la aplicación rigurosa de nuestro algoritmo para las empresas seleccionadas de tu plan. 
-        Te invitamos a revisar los niveles de oportunidad, soporte y resistencia en la tabla detallada a continuación.
-    </p>
-    <p style="font-size: 0.9em; color: #000; margin-top: 15px;">
-        Para cualquier consulta o duda sobre tu análisis, no dudes en contactar con nuestro equipo de soporte en <a href="mailto:info@ibexia.es" style="color: #007bff; text-decoration: none;">**info@ibexia.es**</a>.
-    </p>
+    <div style="text-align: left; max-width: 100%;">
+        <p style="font-size: 1.1em; color: #000; margin-bottom: 20px;">
+            **Estimado/a {nombre_usuario},**
+        </p>
+        <p style="font-size: 1em; color: #000; margin-bottom: 25px;">
+            Nos complace presentarte tu **Reporte Premium de Oportunidades Bursátiles** de IBEXIA, correspondiente al **{fecha_asunto} a las {hora_asunto} horas**.
+            Este análisis exclusivo se basa en la aplicación rigurosa de nuestro algoritmo para las empresas seleccionadas de tu plan. 
+            Te invitamos a revisar los niveles de oportunidad, soporte y resistencia en la tabla detallada a continuación.
+        </p>
+        <p style="font-size: 0.9em; color: #000; margin-top: 15px;">
+            Para cualquier consulta o duda sobre tu análisis, no dudes en contactar con nuestro equipo de soporte en <a href="mailto:info@ibexia.es" style="color: #007bff; text-decoration: none;">**info@ibexia.es**</a>.
+        </p>
+    </div>
     """
     
     # Se inserta el saludo antes del contenido principal (la tabla HTML)
     cuerpo_final_html = saludo_profesional + html_content
+
 
     msg = MIMEMultipart('alternative')
     msg['From'] = remitente_visible
