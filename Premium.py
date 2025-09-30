@@ -941,75 +941,73 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
     return html_body
 
 # ----------------------------------------------------------------------
-# 4. FUNCIÓN MODIFICADA: ENVÍO DE CORREO
-# Ahora acepta el destinatario del usuario como argumento.
 # ----------------------------------------------------------------------
-def enviar_email_con_adjunto(html_body, asunto_email, destinatario_usuario):
-    """Envía el correo al destinatario especificado."""
-    # ATENCIÓN: Se usa el remitente fijo y la contraseña que ya tenías
-    remitente = "xumkox@gmail.com"
+# 4. FUNCIÓN MODIFICADA: ENVÍO DE CORREO (Ahora envía el HTML en el cuerpo)
+# ----------------------------------------------------------------------
+def enviar_email(html_content, asunto_email, destinatario_usuario, nombre_usuario):
+    """Envía el correo al destinatario especificado con el HTML en el cuerpo."""
+    
+    # *** ESTO DEFINE EL CAMPO "DE:" QUE VERÁ EL USUARIO ***
+    remitente_visible = "info@ibexia.es" 
+    
+    # ESTO DEFINE EL LOGIN REAL QUE TIENE LA CLAVE DE APLICACIÓN DE GMAIL
+    remitente_login = "xumkox@gmail.com"
     password = "kdgz lvdo wqvt vfkt" 
 
-    # Generar un nombre de archivo único para evitar conflictos entre envíos
-    html_filename = f"analisis_premium_{destinatario_usuario.split('@')[0]}_{datetime.now().strftime('%Y%m%d%H%M%S')}.html"
+    # 1. Crear el Saludo y el Cuerpo Completo del Mensaje
+    saludo_profesional = f"""
+    <p style="font-size: 1.1em; color: #343a40; margin-bottom: 20px;">
+        **Estimado/a {nombre_usuario},**
+    </p>
+    <p style="font-size: 1em; color: #6c757d; margin-bottom: 25px;">
+        Aquí tienes tu **Envío Premium** con el análisis de oportunidades bursátiles de hoy.
+    </p>
+    """
+    
+    # Se inserta el saludo antes del contenido principal (la tabla HTML)
+    cuerpo_final_html = saludo_profesional + html_content
 
-    # Generar el archivo HTML
-    with open(html_filename, "w", encoding="utf-8") as f:
-        f.write(html_body)
-
-    msg = MIMEMultipart()
-    msg['From'] = remitente
-    # *** CAMBIO CLAVE: Usar el destinatario_usuario pasado como argumento ***
+    msg = MIMEMultipart('alternative')
+    msg['From'] = remitente_visible # Usamos info@ibexia.es como remitente visible
     msg['To'] = destinatario_usuario 
     msg['Subject'] = asunto_email
 
-    # Adjuntar el archivo HTML generado
-    with open(html_filename, "rb") as attachment:
-        part = MIMEBase("application", "octet-stream")
-        part.set_payload(attachment.read())
-
-    encoders.encode_base64(part)
-    part.add_header(
-        "Content-Disposition",
-        f"attachment; filename={html_filename}",
-    )
+    # Adjuntar el HTML como cuerpo del mensaje
+    part = MIMEText(cuerpo_final_html, 'html')
     msg.attach(part)
 
     try:
         servidor = smtplib.SMTP('smtp.gmail.com', 587)
         servidor.starttls()
-        servidor.login(remitente, password)
-        # *** CAMBIO CLAVE: Enviar al destinatario_usuario ***
-        servidor.sendmail(remitente, destinatario_usuario, msg.as_string()) 
+        # Aquí se usa el login de la cuenta que está autorizada (xumkox@gmail.com)
+        servidor.login(remitente_login, password) 
+        # Pero se envía indicando que es info@ibexia.es
+        servidor.sendmail(remitente_visible, destinatario_usuario, msg.as_string()) 
         servidor.quit()
-        print(f"✅ Correo enviado a {destinatario_usuario} con el asunto: {asunto_email}")
-        os.remove(html_filename)
+        print(f"✅ Correo enviado a {destinatario_usuario} desde {remitente_visible} con el asunto: {asunto_email}")
+        
     except Exception as e:
-        print(f"❌ Error al enviar el correo a {destinatario_usuario}: {e}")
-
+        print(f"❌ Error al enviar el correo a {destinatario_usuario} desde {remitente_visible}: {e}")
 # ----------------------------------------------------------------------
-# 5. FUNCIÓN REESTRUCTURADA: LÓGICA PRINCIPAL
+# ----------------------------------------------------------------------
+# 5. FUNCIÓN REESTRUCTURADA: LÓGICA PRINCIPAL (Multi-Usuario)
 # ----------------------------------------------------------------------
 def generar_reporte():
     try:
         # 1. ANÁLISIS GLOBAL: Procesar TODAS las 80+ empresas una sola vez
         print("Iniciando análisis global de todas las empresas...")
-        all_company_tickers = list(tickers.values())
         datos_completos_por_ticker = {}
         
         for empresa_nombre, ticker in tickers.items():
-            # print(f"🔎 Analizando {empresa_nombre} ({ticker})...")
             try:
                 data = obtener_datos_yfinance(ticker)
                 if data:
                     datos_completos_por_ticker[ticker] = clasificar_empresa(data)
             except Exception as e:
                 print(f"❌ Error al procesar {ticker} en el análisis global: {e}")
-            # time.sleep(1) # Puedes ajustar el delay si es necesario
 
         # 2. PROCESAR USUARIOS Y ENVIAR PERSONALIZADO
         print("\nIniciando envíos personalizados a usuarios premium...")
-        # Llama a la función que lee las 4 columnas (Nombre, Email, Plan, Empresas)
         usuarios_premium = leer_google_sheets()
 
         for usuario in usuarios_premium:
@@ -1030,21 +1028,19 @@ def generar_reporte():
                     # Si es LOTE, usa todos los datos analizados
                     datos_para_reporte = list(datos_completos_por_ticker.values())
                 else:
-                    # Si es plan 3 o 10, usa la lista de empresas (separadas por coma)
-                    
                     # Convertir la cadena de empresas a una lista de tickers válidos
                     nombres_elegidos = [n.strip() for n in empresas_str.split(',')]
                     tickers_del_usuario = [
                         tickers[nombre_largo] 
                         for nombre_largo in nombres_elegidos 
-                        if nombre_largo in tickers # Asegura que el nombre sea una clave válida
+                        if nombre_largo in tickers
                     ]
                     
                     # Filtrar los datos analizados previamente (paso 1)
                     datos_para_reporte = [
                         datos_completos_por_ticker[t] 
                         for t in tickers_del_usuario 
-                        if t in datos_completos_por_ticker # Solo si se analizó con éxito
+                        if t in datos_completos_por_ticker
                     ]
                 
                 if not datos_para_reporte:
@@ -1054,14 +1050,14 @@ def generar_reporte():
                 # 4. ORDENAR DATOS Y GENERAR HTML PERSONALIZADO
                 datos_ordenados = sorted(datos_para_reporte, key=obtener_clave_ordenacion)
 
-                # Generar el HTML personalizado (llama a la nueva función)
+                # Generar el HTML personalizado
                 html_body = generar_html_reporte(datos_ordenados, nombre_usuario)
 
-                # 5. ENVIAR CORREO PERSONALIZADO
+                # 5. ENVIAR CORREO PERSONALIZADO (¡Llamada Corregida!)
                 asunto = f"⭐ {nombre_usuario}, tu Reporte Premium de Oportunidades ({len(datos_ordenados)} empresas analizadas hoy)"
                 
-                # Llamada a la función modificada con el email del usuario
-                enviar_email_con_adjunto(html_body, asunto, email_usuario) 
+                # Llamada a la nueva función
+                enviar_email(html_body, asunto, email_usuario, nombre_usuario) 
 
             except Exception as e:
                 print(f"❌ Error al procesar el usuario {usuario}: {e}")
