@@ -942,9 +942,10 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
 
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
-# 4. FUNCIÓN MODIFICADA: ENVÍO DE CORREO (Ahora envía el HTML en el cuerpo)
 # ----------------------------------------------------------------------
-def enviar_email(html_content, asunto_email, destinatario_usuario, nombre_usuario):
+# 4. FUNCIÓN MODIFICADA: ENVÍO DE CORREO (Ahora con saludo profesional y fecha)
+# ----------------------------------------------------------------------
+def enviar_email(html_content, asunto_email, destinatario_usuario, nombre_usuario, fecha_asunto, hora_asunto):
     """Envía el correo al destinatario especificado con el HTML en el cuerpo."""
     
     # *** ESTO DEFINE EL CAMPO "DE:" QUE VERÁ EL USUARIO ***
@@ -954,13 +955,18 @@ def enviar_email(html_content, asunto_email, destinatario_usuario, nombre_usuari
     remitente_login = "xumkox@gmail.com"
     password = "kdgz lvdo wqvt vfkt" 
 
-    # 1. Crear el Saludo y el Cuerpo Completo del Mensaje
+    # 1. Crear el Saludo y el Cuerpo Completo del Mensaje (¡AHORA MÁS PROFESIONAL!)
     saludo_profesional = f"""
-    <p style="font-size: 1.1em; color: #343a40; margin-bottom: 20px;">
+    <p style="font-size: 1.1em; color: #000; margin-bottom: 20px;">
         **Estimado/a {nombre_usuario},**
     </p>
-    <p style="font-size: 1em; color: #6c757d; margin-bottom: 25px;">
-        Aquí tienes tu **Envío Premium** con el análisis de oportunidades bursátiles de hoy.
+    <p style="font-size: 1em; color: #000; margin-bottom: 25px;">
+        Nos complace presentarte tu **Reporte Premium de Oportunidades Bursátiles** de IBEXIA, correspondiente al **{fecha_asunto} a las {hora_asunto} horas**.
+        Este análisis exclusivo se basa en la aplicación rigurosa de nuestro algoritmo para las empresas seleccionadas de tu plan. 
+        Te invitamos a revisar los niveles de oportunidad, soporte y resistencia en la tabla detallada a continuación.
+    </p>
+    <p style="font-size: 0.9em; color: #000; margin-top: 15px;">
+        Para cualquier consulta o duda sobre tu análisis, no dudes en contactar con nuestro equipo de soporte en <a href="mailto:info@ibexia.es" style="color: #007bff; text-decoration: none;">**info@ibexia.es**</a>.
     </p>
     """
     
@@ -968,7 +974,7 @@ def enviar_email(html_content, asunto_email, destinatario_usuario, nombre_usuari
     cuerpo_final_html = saludo_profesional + html_content
 
     msg = MIMEMultipart('alternative')
-    msg['From'] = remitente_visible # Usamos info@ibexia.es como remitente visible
+    msg['From'] = remitente_visible
     msg['To'] = destinatario_usuario 
     msg['Subject'] = asunto_email
 
@@ -979,21 +985,27 @@ def enviar_email(html_content, asunto_email, destinatario_usuario, nombre_usuari
     try:
         servidor = smtplib.SMTP('smtp.gmail.com', 587)
         servidor.starttls()
-        # Aquí se usa el login de la cuenta que está autorizada (xumkox@gmail.com)
         servidor.login(remitente_login, password) 
-        # Pero se envía indicando que es info@ibexia.es
         servidor.sendmail(remitente_visible, destinatario_usuario, msg.as_string()) 
-        servidor.quit()
         print(f"✅ Correo enviado a {destinatario_usuario} desde {remitente_visible} con el asunto: {asunto_email}")
+        servidor.quit()
         
     except Exception as e:
         print(f"❌ Error al enviar el correo a {destinatario_usuario} desde {remitente_visible}: {e}")
+# ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
 # 5. FUNCIÓN REESTRUCTURADA: LÓGICA PRINCIPAL (Multi-Usuario)
 # ----------------------------------------------------------------------
 def generar_reporte():
     try:
+        # CÁLCULO DE FECHA Y HORA (SE HACE UNA VEZ AL PRINCIPIO)
+        now_utc = datetime.utcnow()
+        time_offset = timedelta(hours=2) # Asumo CEST/CET +2 horas
+        local_time = now_utc + time_offset
+        fecha_asunto = local_time.strftime('%d/%m')
+        hora_asunto = local_time.strftime('%H:%M')
+
         # 1. ANÁLISIS GLOBAL: Procesar TODAS las 80+ empresas una sola vez
         print("Iniciando análisis global de todas las empresas...")
         datos_completos_por_ticker = {}
@@ -1053,11 +1065,12 @@ def generar_reporte():
                 # Generar el HTML personalizado
                 html_body = generar_html_reporte(datos_ordenados, nombre_usuario)
 
-                # 5. ENVIAR CORREO PERSONALIZADO (¡Llamada Corregida!)
-                asunto = f"⭐ {nombre_usuario}, tu Reporte Premium de Oportunidades ({len(datos_ordenados)} empresas analizadas hoy)"
+                # 5. ENVIAR CORREO PERSONALIZADO
+                # ASUNTO CON EL FORMATO REQUERIDO: "ANALISIS PREMIUM 30/09 17:00 horas."
+                asunto = f"ANALISIS PREMIUM {fecha_asunto} {hora_asunto} horas."
                 
-                # Llamada a la nueva función
-                enviar_email(html_body, asunto, email_usuario, nombre_usuario) 
+                # Llamada a la función con los nuevos argumentos de fecha y hora
+                enviar_email(html_body, asunto, email_usuario, nombre_usuario, fecha_asunto, hora_asunto) 
 
             except Exception as e:
                 print(f"❌ Error al procesar el usuario {usuario}: {e}")
