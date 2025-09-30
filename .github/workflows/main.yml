@@ -24,7 +24,10 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         # Instala todas las librerías necesarias
-        pip install yfinance google-api-python-client google-auth-oauthlib google-auth pandas numpy pandas-ta
+        pip install yfinance google-api-python-client google-auth-oauthlib google-auth pandas numpy pandas-ta google-genai
+        # Asegúrate de que todas las librerías estén en una sola línea o añades la de abajo.
+        # Si prefieres mantenerlas separadas:
+        # pip install google-genai 
         
     # 3. Ejecución del Script
     - name: Run Python Script
