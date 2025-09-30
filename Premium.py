@@ -2,7 +2,6 @@ import os
 import json
 import smtplib
 import yfinance as yf
-import google.generativeai as genai
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from google.oauth2 import service_account
