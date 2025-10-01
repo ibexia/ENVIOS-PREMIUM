@@ -692,7 +692,7 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                         <tr class="category-header"><td colspan="5">ATENTOS A VENDER/VIGILANCIA</td></tr>
                     """
             elif current_orden_grupo in [6, 7]: # Grupo Intermedio
-                if previous_orden_grupo is None or previous_ordenado not in [6, 7]:
+                if previous_orden_grupo is None or previous_orden_grupo not in [6, 7]:
                     # CAMBIO: colspan a 5
                     tabla_html_contenido += """
                         <tr class="category-header"><td colspan="5">OTRAS EMPRESAS SIN MOVIMIENTOS</td></tr>
