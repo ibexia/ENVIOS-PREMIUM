@@ -871,18 +871,18 @@ def enviar_email(html_content, asunto_email, destinatario_usuario, nombre_usuari
     """Envía el correo al destinatario especificado con el HTML en el cuerpo, usando Brevo SMTP."""
     
     # --- 1. CREDENCIALES DE ENVÍO SMTP (Brevo) ---
-    # Parámetros de conexión proporcionados por Brevo (anteriormente Sendinblue)
     servidor_smtp = 'smtp-relay.brevo.com'
-    puerto_smtp = 587 # Puerto estándar para TLS
+    puerto_smtp = 587 
     
-    # El remitente que el usuario verá
+    # CAMBIO CRUCIAL: Se define el remitente con el nombre de visualización
+    remitente_nombre_completo = "IBEXIA.es <info@ibexia.es>" 
     remitente_visible = "info@ibexia.es" 
     
-    # Usuario y Contraseña Maestra de Brevo para iniciar sesión (RELLENADO CON TUS DATOS)
-    remitente_login = "9853a2001@smtp-brevo.com" # Login de Brevo
-    password = "PRHTU5GN1ygZ9XVC"  # Clave Maestra de Brevo
+    # Credenciales de Brevo (Login y Contraseña Maestra)
+    remitente_login = "9853a2001@smtp-brevo.com" 
+    password = "PRHTU5GN1ygZ9XVC"  
     
-    # 2. Crear el Saludo y el Cuerpo Completo del Mensaje 
+    # 1. Crear el Saludo y el Cuerpo Completo del Mensaje (¡AHORA MÁS PROFESIONAL!)
     saludo_profesional = f"""
     <div style="max-width: 1200px; margin: 0 auto; padding: 15px; text-align: left;"> 
         <p style="font-size: 1.1em; color: #000; margin-bottom: 20px; text-align:left;">
@@ -903,7 +903,8 @@ def enviar_email(html_content, asunto_email, destinatario_usuario, nombre_usuari
     cuerpo_final_html = saludo_profesional + html_content
 
     msg = MIMEMultipart('alternative')
-    msg['From'] = remitente_visible
+    # USAMOS AHORA EL NOMBRE DE VISUALIZACIÓN COMPLETO
+    msg['From'] = remitente_nombre_completo 
     msg['To'] = destinatario_usuario 
     msg['Subject'] = asunto_email
 
@@ -912,17 +913,18 @@ def enviar_email(html_content, asunto_email, destinatario_usuario, nombre_usuari
     msg.attach(part)
 
     try:
-        # 3. CONEXIÓN Y ENVÍO SMTP (usando Brevo)
+        # CONEXIÓN Y ENVÍO SMTP (usando Brevo)
         servidor = smtplib.SMTP(servidor_smtp, puerto_smtp)
-        servidor.starttls() # Iniciar cifrado TLS
+        servidor.starttls() 
         servidor.login(remitente_login, password) 
+        # sendmail requiere solo la dirección de email limpia para el envío
         servidor.sendmail(remitente_visible, destinatario_usuario, msg.as_string()) 
         servidor.quit()
-        print(f"✅ Correo enviado a {destinatario_usuario} desde {remitente_visible} con el asunto: {asunto_email} (Vía Brevo/Sendinblue)")
+        print(f"✅ Correo enviado a {destinatario_usuario} desde {remitente_visible} con el asunto: {asunto_email} (Vía Brevo)")
         
     except Exception as e:
         print(f"❌ Error al enviar el correo a {destinatario_usuario} desde {remitente_visible}: {e}")
-# ----------------------------------------------------------------------
+
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
 # 5. FUNCIÓN REESTRUCTURADA: LÓGICA PRINCIPAL (Multi-Usuario)
