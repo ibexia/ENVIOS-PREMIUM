@@ -868,29 +868,33 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
 # Se ajusta el HTML del saludo para asegurar la alineación a la izquierda.
 # ----------------------------------------------------------------------
 def enviar_email(html_content, asunto_email, destinatario_usuario, nombre_usuario, fecha_asunto, hora_asunto):
-    """Envía el correo al destinatario especificado con el HTML en el cuerpo."""
+    """Envía el correo al destinatario especificado con el HTML en el cuerpo, usando Brevo SMTP."""
     
-    # *** ESTO DEFINE EL CAMPO "DE:" QUE VERÁ EL USUARIO ***
+    # --- 1. CREDENCIALES DE ENVÍO SMTP (Brevo) ---
+    # Parámetros de conexión proporcionados por Brevo (anteriormente Sendinblue)
+    servidor_smtp = 'smtp-relay.brevo.com'
+    puerto_smtp = 587 # Puerto estándar para TLS
+    
+    # El remitente que el usuario verá
     remitente_visible = "info@ibexia.es" 
     
-    # ESTO DEFINE EL LOGIN REAL QUE TIENE LA CLAVE DE APLICACIÓN DE GMAIL
-    remitente_login = "xumkox@gmail.com"
-    password = "kdgz lvdo wqvt vfkt" 
-
-    # 1. Crear el Saludo y el Cuerpo Completo del Mensaje (¡AHORA MÁS PROFESIONAL!)
-    # CAMBIO: Se añade style='text-align:left' para forzar la alineación a la izquierda del cuerpo del texto
+    # Usuario y Contraseña Maestra de Brevo para iniciar sesión (RELLENADO CON TUS DATOS)
+    remitente_login = "9853a2001@smtp-brevo.com" # Login de Brevo
+    password = "PRHTU5GN1ygZ9XVC"  # Clave Maestra de Brevo
+    
+    # 2. Crear el Saludo y el Cuerpo Completo del Mensaje 
     saludo_profesional = f"""
     <div style="max-width: 1200px; margin: 0 auto; padding: 15px; text-align: left;"> 
         <p style="font-size: 1.1em; color: #000; margin-bottom: 20px; text-align:left;">
-            **Estimado/a {nombre_usuario},**
+            <strong>Estimado/a {nombre_usuario},</strong>
         </p>
         <p style="font-size: 1em; color: #000; margin-bottom: 25px; text-align:left;">
-            Nos complace presentarte tu **Reporte Premium de Oportunidades Bursátiles** de IBEXIA, correspondiente al **{fecha_asunto} a las {hora_asunto} horas**.
+            Nos complace presentarte tu <strong>Reporte Premium de Oportunidades Bursátiles</strong> de IBEXIA, correspondiente al <strong>{fecha_asunto} a las {hora_asunto} horas</strong>.
             Este análisis exclusivo se basa en la aplicación rigurosa de nuestro algoritmo para las empresas seleccionadas de tu plan. 
             Te invitamos a revisar los niveles de oportunidad, soporte y resistencia en la tabla detallada a continuación.
         </p>
         <p style="font-size: 0.9em; color: #000; margin-top: 15px; text-align:left;">
-            Para cualquier consulta o duda sobre tu análisis, no dudes en contactar con nuestro equipo de soporte en <a href="mailto:info@ibexia.es" style="color: #007bff; text-decoration: none;">**info@ibexia.es**</a>.
+            Para cualquier consulta o duda sobre tu análisis, no dudes en contactar con nuestro equipo de soporte en <a href="mailto:info@ibexia.es" style="color: #007bff; text-decoration: none;"><strong>info@ibexia.es</strong></a>.
         </p>
     </div>
     """
@@ -908,12 +912,13 @@ def enviar_email(html_content, asunto_email, destinatario_usuario, nombre_usuari
     msg.attach(part)
 
     try:
-        servidor = smtplib.SMTP('smtp.gmail.com', 587)
-        servidor.starttls()
+        # 3. CONEXIÓN Y ENVÍO SMTP (usando Brevo)
+        servidor = smtplib.SMTP(servidor_smtp, puerto_smtp)
+        servidor.starttls() # Iniciar cifrado TLS
         servidor.login(remitente_login, password) 
         servidor.sendmail(remitente_visible, destinatario_usuario, msg.as_string()) 
-        print(f"✅ Correo enviado a {destinatario_usuario} desde {remitente_visible} con el asunto: {asunto_email}")
         servidor.quit()
+        print(f"✅ Correo enviado a {destinatario_usuario} desde {remitente_visible} con el asunto: {asunto_email} (Vía Brevo/Sendinblue)")
         
     except Exception as e:
         print(f"❌ Error al enviar el correo a {destinatario_usuario} desde {remitente_visible}: {e}")
