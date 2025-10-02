@@ -933,89 +933,87 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
 
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
-# 4. FUNCIÓN MODIFICADA: ENVÍO DE CORREO
-# Se añade la funcionalidad para adjuntar el archivo HTML para diagnóstico.
 # ----------------------------------------------------------------------
-def enviar_email(html_content, asunto_email, destinatario_usuario, nombre_usuario, fecha_asunto, hora_asunto):
-    """Envía el correo al destinatario especificado con el HTML en el cuerpo Y adjunta el HTML como archivo para diagnóstico."""
+# 4. FUNCIÓN MODIFICADA: ENVÍO DE CORREO
+# Se modifica para que el CUERPO del email sea un aviso, y el ADJUNTO sea
+# el reporte HTML completo generado por generar_html_reporte.
+# ----------------------------------------------------------------------
+def enviar_email(html_content_full_report, asunto_email, destinatario_usuario, nombre_usuario, fecha_asunto, hora_asunto):
+    """Envía un correo minimalista con un aviso para abrir el HTML adjunto."""
     
     # --- 1. CREDENCIALES DE ENVÍO SMTP (Brevo) ---
     servidor_smtp = 'smtp-relay.brevo.com'
     puerto_smtp = 587 
     
-    # CAMBIO CRUCIAL: Se define el remitente con el nombre de visualización
     remitente_nombre_completo = "IBEXIA.es <info@ibexia.es>" 
     remitente_visible = "info@ibexia.es" 
     
-    # Credenciales de Brevo (Login y Contraseña Maestra)
+    # Credenciales de Brevo (Asumo que son variables de entorno o constantes privadas)
+    # ATENCIÓN: No incluyo las claves aquí. Debes mantener tus constantes.
     remitente_login = "9853a2001@smtp-brevo.com" 
     password = "PRHTU5GN1ygZ9XVC"  
     
-    # 1. Crear el Saludo y el Cuerpo Completo del Mensaje (¡AHORA MÁS PROFESIONAL!)
-    saludo_profesional = f"""
-    <div style="max-width: 1200px; margin: 0 auto; padding: 15px; text-align: left;"> 
-        <p style="font-size: 1.1em; color: #000; margin-bottom: 20px; text-align:left;">
-            <strong>Estimado/a {nombre_usuario},</strong>
+    # --- 2. GENERACIÓN DEL CUERPO MÍNIMO DEL CORREO ---
+    # Este es el texto profesional que se verá dentro de Gmail
+    cuerpo_aviso_html = f"""
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #343a40; text-align: left;"> 
+        <h2 style="color: #495057; font-size: 1.5em; margin-bottom: 20px;">
+            👋 ¡Hola, {nombre_usuario}! Tu Reporte Premium de Oportunidades
+        </h2>
+        <p style="font-size: 1.0em; margin-bottom: 25px;">
+            Le confirmamos el envío de su <strong>Reporte Premium de Oportunidades Bursátiles</strong> de IBEXIA, correspondiente al <strong>{fecha_asunto} a las {hora_asunto} horas</strong>.
         </p>
-        <p style="font-size: 1em; color: #000; margin-bottom: 25px; text-align:left;">
-            Nos complace presentarte tu <strong>Reporte Premium de Oportunidades Bursátiles</strong> de IBEXIA, correspondiente al <strong>{fecha_asunto} a las {hora_asunto} horas</strong>.
-            Este análisis exclusivo se basa en la aplicación rigurosa de nuestro algoritmo para las empresas seleccionadas de tu plan. 
-            Te invitamos a revisar los niveles de oportunidad, soporte y resistencia en la tabla detallada a continuación.
+        <p style="font-size: 1.0em; font-weight: bold; color: #007bff; margin-bottom: 30px;">
+            Hemos adjuntado el análisis completo en formato HTML. Por favor, <strong style="color: #dc3545;">descargue y abra el archivo adjunto</strong> directamente en su navegador web para visualizar el reporte completo con la funcionalidad y estilos correctos.
         </p>
-        <p style="font-size: 0.9em; color: #000; margin-top: 15px; text-align:left;">
-            Para cualquier consulta o duda sobre tu análisis, no dudes en contactar con nuestro equipo de soporte en <a href="mailto:info@ibexia.es" style="color: #007bff; text-decoration: none;"><strong>info@ibexia.es</strong></a>.
+        <p style="font-size: 0.9em; color: #6c757d; margin-top: 20px;">
+            Para cualquier consulta sobre su análisis, contacte con nuestro equipo de soporte: <a href="mailto:info@ibexia.es" style="color: #007bff; text-decoration: none;">info@ibexia.es</a>.
         </p>
+        <div style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 10px; font-size: 0.8em; text-align: center; color: #6c757d;">
+            <strong>Aviso:</strong> El algoritmo de trading se basa en indicadores técnicos y no garantiza la rentabilidad.
+        </div>
     </div>
     """
-    
-    # Se inserta el saludo antes del contenido principal (la tabla HTML)
-    cuerpo_final_html = saludo_profesional + html_content
 
-    # CAMBIO CRUCIAL: Usamos 'mixed' como contenedor principal para cuerpo y adjuntos
+    # --- 3. CONFIGURACIÓN DEL MENSAJE Y ADJUNTOS ---
     msg = MIMEMultipart('mixed') 
     
-    # USAMOS AHORA EL NOMBRE DE VISUALIZACIÓN COMPLETO
     msg['From'] = remitente_nombre_completo 
     msg['To'] = destinatario_usuario 
     msg['Subject'] = asunto_email
 
-    # Contenedor para el cuerpo del mensaje (HTML)
+    # Contenedor para el cuerpo del mensaje (el aviso minimalista)
     msg_body = MIMEMultipart('alternative')
     
-    # Adjuntar el HTML como cuerpo del mensaje
-    part = MIMEText(cuerpo_final_html, 'html')
+    # Adjuntar el HTML de aviso como cuerpo del mensaje
+    part = MIMEText(cuerpo_aviso_html, 'html')
     msg_body.attach(part)
-    
-    # Añadir el cuerpo (HTML) al mensaje principal
     msg.attach(msg_body)
     
-    # --- INICIO: LÓGICA PARA ADJUNTAR EL ARCHIVO HTML (PUNTO DE DIAGNÓSTICO) ---
+    # --- 4. LÓGICA PARA ADJUNTAR EL ARCHIVO HTML COMPLETO ---
     try:
-        # 1. Generar un nombre de archivo HTML único
+        # Usamos el html_content_full_report para el archivo adjunto
         nombre_archivo_html = f"Reporte_Premium_{nombre_usuario}_{fecha_asunto.replace('/', '-')}_{hora_asunto.replace(':', '-')}.html"
         
-        # 2. Crear un objeto MIMEBase para el adjunto HTML
         attachment = MIMEBase('application', 'octet-stream')
-        # Usamos el html_content (solo la tabla) para el archivo adjunto
-        attachment.set_payload(html_content.encode('utf-8')) 
+        # USAMOS EL CONTENIDO COMPLETO DEL REPORTE PARA EL ADJUNTO
+        attachment.set_payload(html_content_full_report.encode('utf-8')) 
         encoders.encode_base64(attachment)
         attachment.add_header('Content-Disposition', 'attachment', filename=nombre_archivo_html)
         
-        # 3. Adjuntar el archivo al mensaje principal
         msg.attach(attachment)
-        print(f"✔️ DEBUG: Adjuntando el archivo HTML {nombre_archivo_html} al correo.")
+        print(f"✔️ DEBUG: Adjuntando el archivo HTML COMPLETO {nombre_archivo_html} al correo.")
 
     except Exception as e:
         print(f"⚠️ Advertencia: No se pudo adjuntar el archivo HTML: {e}")
-    # --- FIN: LÓGICA PARA ADJUNTAR EL ARCHIVO HTML ---
+    # -----------------------------------------------------------
 
 
+    # --- 5. ENVÍO SMTP (Se mantiene la lógica original) ---
     try:
-        # CONEXIÓN Y ENVÍO SMTP (usando Brevo)
         servidor = smtplib.SMTP(servidor_smtp, puerto_smtp)
         servidor.starttls() 
         servidor.login(remitente_login, password) 
-        # sendmail requiere solo la dirección de email limpia para el envío
         servidor.sendmail(remitente_visible, destinatario_usuario, msg.as_string()) 
         servidor.quit()
         print(f"✅ Correo enviado a {destinatario_usuario} desde {remitente_visible} con el asunto: {asunto_email} (Vía Brevo)")
@@ -1135,9 +1133,10 @@ def generar_reporte():
                     if t in datos_completos_por_ticker:
                         # Empresa analizada correctamente
                         datos_para_reporte.append(datos_completos_por_ticker[t])
-                    elif t in errores_por_ticker:
-                        # Empresa fallida, incluir el registro de error
-                        datos_para_reporte.append(errores_por_ticker[t])
+                # --- NUEVO FILTRO PARA ASEGURAR QUE SÓLO HAY ANALIZADOS CORRECTAMENTE ---
+                # Aunque ya no incluimos los fallidos, esto asegura la limpieza de la lista
+                datos_para_reporte = [d for d in datos_para_reporte if d.get('OPORTUNIDAD') != "ANÁLISIS FALLIDO"]
+                # --------------------------------------------------------------------------
                 
                 
                 if not datos_para_reporte:
