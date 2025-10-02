@@ -2,8 +2,14 @@ name: Envio Diario de Reporte Premium
 
 on:
   schedule:
-    # Ejecuta todos los días a las 10:00 AM UTC (Ajusta este CRON a tu horario deseado)
-    - cron: '0 10 * * *' 
+    # 1. 8:45 AM en España (6:45 UTC)
+    - cron: '45 6 * * *' 
+    # 2. 11:45 AM en España (9:45 UTC)
+    - cron: '45 9 * * *' 
+    # 3. 14:45 PM en España (12:45 UTC)
+    - cron: '45 12 * * *'
+    # 4. 17:45 PM en España (15:45 UTC)
+    - cron: '45 15 * * *' 
   workflow_dispatch:
     # Esto te permite ejecutar el script manualmente desde la interfaz de GitHub
 
