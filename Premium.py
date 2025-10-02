@@ -560,6 +560,11 @@ def generar_observaciones(data):
 
 def obtener_clave_ordenacion(empresa):
     categoria = empresa['OPORTUNIDAD']
+    nombre = empresa.get('NOMBRE_EMPRESA', '')
+
+    # ⚠️ DIAGNÓSTICO: FORZAR ACERINOX y ACS al principio (Prioridad 0)
+    if nombre == 'Acerinox' or nombre == 'ACS':
+        return (0, nombre)
     
     prioridad = {
         "Posibilidad de Compra Activada": 1,
