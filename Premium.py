@@ -618,57 +618,78 @@ def generar_fila_reporte_error(data):
 
 
 def generar_fila_reporte(data):
-    """Genera la fila principal, la fila de detalle y la fila de observaciones para una empresa."""
+    """Genera la fila principal, la fila de detalle y la fila de observaciones para una empresa, usando estilos inline para máxima compatibilidad con email."""
     
-    # Lógica para determinar el enlace (si quieres mantener la integración con tu web)
     global tickers
     nombre_empresa_url = None
     for nombre, ticker_val in tickers.items():
         if ticker_val == data['TICKER']:
             nombre_empresa_url = nombre
             break
-    
+            
     if nombre_empresa_url:
+        # Enlace a tu web (se mantiene)
         empresa_link = f'https://ibexia.es/category/{nombre_empresa_url.lower()}/'
     else:
         empresa_link = '#'
+        
+    # Colores y estilos INLINE (CLAVE para la visibilidad en emails)
+    colores = {
+        "COMPRA": "#d4edda",        # Verde claro fuerte (Celda Nombre)
+        "RIESGO": "#fff3cd",        # Amarillo (Celda Nombre)
+        "VENTA": "#f8d7da",         # Rojo claro (Celda Nombre)
+        "DEFAULT_CELDA": "#f9f9f9"  # Gris muy claro (para Intermedio/Vigilar)
+    }
+    
+    # 1. Determinar color de fondo para la celda del nombre (la que lleva color de clase)
+    if "compra" in data['OPORTUNIDAD'].lower() and "riesgo" not in data['OPORTUNIDAD'].lower():
+        color_celda_nombre = colores["COMPRA"]
+    elif "venta" in data['OPORTUNIDAD'].lower():
+        color_celda_nombre = colores["VENTA"]
+    elif "riesgo" in data['OPORTUNIDAD'].lower(): # Compra RIESGO
+        color_celda_nombre = colores["RIESGO"]
+    else:
+        # Aquí caen ACX y ACS ("Intermedio", "VIGILAR", etc.)
+        # Asignamos un color CLARO, pero explícito, para garantizar la visibilidad
+        color_celda_nombre = colores["DEFAULT_CELDA"] 
+    
+    # 2. Determinar color de fondo para la fila principal (ligero, visible para el cliente de correo)
+    color_fondo_fila = "#ffffff" # Por defecto blanco, pero la celda Nombre lleva el color
+
+    # 3. Determinar el color de la celda OPORTUNIDAD (la celda central)
+    # Utilizamos el mismo mapeo para darle el color directamente al contenido
+    if "compra" in data['OPORTUNIDAD'].lower() and "riesgo" not in data['OPORTUNIDAD'].lower():
+        color_texto_oportunidad = "#155724" # Texto oscuro
+    elif "venta" in data['OPORTUNIDAD'].lower():
+        color_texto_oportunidad = "#721c24" # Texto rojo oscuro
+    elif "riesgo" in data['OPORTUNIDAD'].lower():
+        color_texto_oportunidad = "#856404" # Texto amarillo oscuro
+    else:
+        color_texto_oportunidad = "#383d41" # Texto gris oscuro/negro
+    
     
     # Se mantienen los estilos de la celda de la empresa
-    nombre_con_precio = f"<a href='{empresa_link}' target='_blank' style='text-decoration:none; color:inherit;'><div class='stacked-text'><b>{data['NOMBRE_EMPRESA']}</b><br>({formatear_numero(data['PRECIO_ACTUAL'])}€)</div></a>"
+    nombre_con_precio = f"<a href='{empresa_link}' target='_blank' style='text-decoration:none; color:inherit;'><div style='padding: 5px 0;'><b>{data['NOMBRE_EMPRESA']}</b><br>({formatear_numero(data['PRECIO_ACTUAL'])}€)</div></a>"
 
-    # Ajuste de clases para el estado 'Compra RIESGO'
-    if "compra" in data['OPORTUNIDAD'].lower() and "riesgo" not in data['OPORTUNIDAD'].lower():
-        clase_oportunidad = "compra"
-        celda_empresa_class = "green-cell"
-    elif "venta" in data['OPORTUNIDAD'].lower():
-        clase_oportunidad = "venta"
-        celda_empresa_class = "red-cell"
-    elif "vigilar" in data['OPORTUNIDAD'].lower():
-        clase_oportunidad = "vigilar"
-        celda_empresa_class = ""
-    elif "riesgo" in data['OPORTUNIDAD'].lower():
-        clase_oportunidad = "riesgo-compra"
-        celda_empresa_class = "yellow-cell"
-    else:
-        clase_oportunidad = ""
-        celda_empresa_class = ""
-    
-    
     observaciones = generar_observaciones(data)
     
-    # --- FILAS DE REPORTE CON OBSERVACIÓN SEMANAL EN DETALLE (Siempre visibles) ---
-    # Nota: Se elimina la columna "Análisis detallado" y el botón de "Ver más..."
+    # --- FILAS DE REPORTE CON ESTILOS INLINE (SOLUCIÓN A LA OCULTACIÓN) ---
     return f"""
-                <tr class="main-row">
-                    <td class="{celda_empresa_class}">{nombre_con_precio}</td>
-                    <td>{data['TENDENCIA_ACTUAL']}</td>
-                    <td class="{clase_oportunidad}">{data['OPORTUNIDAD']}</td>
-                    <td>{data['COMPRA_SI']}</td>
-                    <td>{data['VENDE_SI']}</td>
+                <tr style="background-color: {color_fondo_fila}; border-bottom: 1px solid #ddd;">
+                    <td style="background-color: {color_celda_nombre}; font-weight: bold; padding: 5px 10px; border-right: 1px solid #ddd; text-align: left; vertical-align: middle;">{nombre_con_precio}</td>
+                    
+                    <td style="padding: 10px; border-right: 1px solid #ddd; text-align: center; vertical-align: middle;">{data['TENDENCIA_ACTUAL']}</td>
+                    
+                    <td style="font-weight: bold; padding: 10px; border-right: 1px solid #ddd; text-align: center; color: {color_texto_oportunidad}; vertical-align: middle;">{data['OPORTUNIDAD']}</td>
+                    
+                    <td style="padding: 10px; border-right: 1px solid #ddd; text-align: center; vertical-align: middle;">{data['COMPRA_SI']}</td>
+                    
+                    <td style="padding: 10px; text-align: center; vertical-align: middle;">{data['VENDE_SI']}</td>
                 </tr>
+                
                 <tr class="detailed-row">
-                    <td colspan="5">
-                        <div style="display:flex; justify-content:space-around; align-items:flex-start; padding: 10px;">
+                    <td colspan="5" style="padding: 10px; border-top: 1px solid #eee; background-color: #ffffff;">
+                        <div style="display:flex; justify-content:space-around; align-items:flex-start; font-size: 0.9em; line-height: 1.5;">
                             <div style="flex-basis: 25%; text-align:left;">
                                 <b>EMA</b><br>
                                 <span style="font-weight:bold;">{formatear_numero(data['VALOR_EMA'])}€</span><br>
@@ -692,7 +713,7 @@ def generar_fila_reporte(data):
                     </td>
                 </tr>
                 <tr class="observaciones-row">
-                    <td colspan="5">{observaciones}</td>
+                    <td colspan="5" style="padding: 10px; border-bottom: 3px solid #ddd; background-color: #f4f4f4; text-align: left;">{observaciones}</td>
                 </tr>
     """
 
