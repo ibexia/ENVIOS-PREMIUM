@@ -976,11 +976,22 @@ def generar_reporte():
             try:
                 data = obtener_datos_yfinance(ticker)
                 if data:
+                    # Caso 1: Datos obtenidos correctamente
                     datos_completos_por_ticker[ticker] = clasificar_empresa(data)
                 else:
-                    # SI obtener_datos_yfinance devuelve None, es un fallo
-                    raise Exception("Fallo genérico al obtener datos (puede ser precio, históricos, o yfinance).") 
+                    # Caso 2: obtener_datos_yfinance devolvió None (fallo silencioso o advertencia)
+                    # Forzamos el registro de error con un mensaje genérico.
+                    # Esto garantiza que el ticker aparezca en el reporte final.
+                    print(f"❌ Advertencia: La empresa {empresa_nombre} ({ticker}) falló en obtener datos yfinance (devolvió None). Se registrará como fallo.")
+                    errores_por_ticker[ticker] = {
+                        "NOMBRE_EMPRESA": empresa_nombre,
+                        "TICKER": ticker,
+                        "OPORTUNIDAD": "ANÁLISIS FALLIDO",
+                        "MOTIVO_FALLO": "Fallo al obtener datos: yfinance no encontró precio actual, históricos, o falló la conexión de forma silenciosa."
+                    }
+                # *** FIN DE LA MODIFICACIÓN CLAVE ***
             except Exception as e:
+                # Caso 3: Se lanzó una excepción (error ruidoso)
                 # GUARDAR EL ERROR CON EL NOMBRE DE LA EMPRESA Y EL MOTIVO
                 print(f"❌ Error al procesar {ticker} en el análisis global: {e}. Se registrará como fallo.")
                 errores_por_ticker[ticker] = {
