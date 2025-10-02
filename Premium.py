@@ -1069,6 +1069,7 @@ def generar_reporte():
                 if plan_limpio == 'LOTE':
                     # Si es LOTE, la lista de tickers que DEBERÍA tener es TODA
                     tickers_a_incluir = list(tickers.values())
+                    print(f"DEBUG LOTE: Número total de tickers esperados: {len(tickers_a_incluir)}")
                 else:
                     # Convertir la cadena de empresas a una lista de tickers válidos
                     nombres_elegidos = [n.strip() for n in empresas_str.split(',')]
