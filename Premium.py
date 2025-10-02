@@ -1016,16 +1016,22 @@ def generar_reporte():
                 # Si llegamos aquí, 'data' contiene el DataFrame de yfinance
                 resultado_analisis = clasificar_empresa(data)
                 
-                # Aseguramos que el resultado no sea None (aunque no debería)
+                # 1. Aseguramos que el resultado no sea None
                 if resultado_analisis is None:
                     raise ValueError("clasificar_empresa devolvió None.")
+                
+                # 2. **NUEVO Y CRUCIAL:** Aseguramos que el resultado contenga la clave principal de clasificación
+                if 'OPORTUNIDAD' not in resultado_analisis:
+                    # Si falta esta clave, significa que la lógica de clasificación falló internamente.
+                    raise KeyError("Falta la clave 'OPORTUNIDAD' en el resultado de la clasificación. Fallo interno del algoritmo.")
                     
                 # Si todo está bien, guardamos el resultado
                 datos_completos_por_ticker[ticker] = resultado_analisis
+                print(f"✔️ OK: {ticker} clasificado y guardado.")
 
             except Exception as e:
-                # Capturamos fallos en el cálculo o la lógica de clasificación
-                print(f"⚠️ ERROR DE CLASIFICACIÓN/CÁLCULO para {ticker}: {e}. Registrando fallo de análisis.")
+                # Capturamos fallos en el cálculo o la lógica de clasificación (incluyendo los dos raise anteriores)
+                print(f"❌ ERROR DE CLASIFICACIÓN/CÁLCULO para {ticker}: {e}. Registrando fallo de análisis.")
                 errores_por_ticker[ticker] = {
                     "NOMBRE_EMPRESA": empresa_nombre,
                     "TICKER": ticker,
