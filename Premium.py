@@ -911,11 +911,12 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
     return html_body
 
 # ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
 # 4. FUNCIÓN MODIFICADA: ENVÍO DE CORREO
-# Se ajusta el HTML del saludo para asegurar la alineación a la izquierda.
+# Se añade la funcionalidad para adjuntar el archivo HTML para diagnóstico.
 # ----------------------------------------------------------------------
 def enviar_email(html_content, asunto_email, destinatario_usuario, nombre_usuario, fecha_asunto, hora_asunto):
-    """Envía el correo al destinatario especificado con el HTML en el cuerpo, usando Brevo SMTP."""
+    """Envía el correo al destinatario especificado con el HTML en el cuerpo Y adjunta el HTML como archivo para diagnóstico."""
     
     # --- 1. CREDENCIALES DE ENVÍO SMTP (Brevo) ---
     servidor_smtp = 'smtp-relay.brevo.com'
@@ -949,15 +950,44 @@ def enviar_email(html_content, asunto_email, destinatario_usuario, nombre_usuari
     # Se inserta el saludo antes del contenido principal (la tabla HTML)
     cuerpo_final_html = saludo_profesional + html_content
 
-    msg = MIMEMultipart('alternative')
+    # CAMBIO CRUCIAL: Usamos 'mixed' como contenedor principal para cuerpo y adjuntos
+    msg = MIMEMultipart('mixed') 
+    
     # USAMOS AHORA EL NOMBRE DE VISUALIZACIÓN COMPLETO
     msg['From'] = remitente_nombre_completo 
     msg['To'] = destinatario_usuario 
     msg['Subject'] = asunto_email
 
+    # Contenedor para el cuerpo del mensaje (HTML)
+    msg_body = MIMEMultipart('alternative')
+    
     # Adjuntar el HTML como cuerpo del mensaje
     part = MIMEText(cuerpo_final_html, 'html')
-    msg.attach(part)
+    msg_body.attach(part)
+    
+    # Añadir el cuerpo (HTML) al mensaje principal
+    msg.attach(msg_body)
+    
+    # --- INICIO: LÓGICA PARA ADJUNTAR EL ARCHIVO HTML (PUNTO DE DIAGNÓSTICO) ---
+    try:
+        # 1. Generar un nombre de archivo HTML único
+        nombre_archivo_html = f"Reporte_Premium_{nombre_usuario}_{fecha_asunto.replace('/', '-')}_{hora_asunto.replace(':', '-')}.html"
+        
+        # 2. Crear un objeto MIMEBase para el adjunto HTML
+        attachment = MIMEBase('application', 'octet-stream')
+        # Usamos el html_content (solo la tabla) para el archivo adjunto
+        attachment.set_payload(html_content.encode('utf-8')) 
+        encoders.encode_base64(attachment)
+        attachment.add_header('Content-Disposition', 'attachment', filename=nombre_archivo_html)
+        
+        # 3. Adjuntar el archivo al mensaje principal
+        msg.attach(attachment)
+        print(f"✔️ DEBUG: Adjuntando el archivo HTML {nombre_archivo_html} al correo.")
+
+    except Exception as e:
+        print(f"⚠️ Advertencia: No se pudo adjuntar el archivo HTML: {e}")
+    # --- FIN: LÓGICA PARA ADJUNTAR EL ARCHIVO HTML ---
+
 
     try:
         # CONEXIÓN Y ENVÍO SMTP (usando Brevo)
