@@ -570,13 +570,30 @@ def obtener_clave_ordenacion(empresa):
         "Riesgo de Venta Activada": 5,
         "Seguirá bajando": 6,
         "Intermedio": 7,
+        "ANÁLISIS FALLIDO": 99 
     }
 
     orden_interna = prioridad.get(categoria, 99)
     return (orden_interna, empresa['NOMBRE_EMPRESA'])
 
 # ----------------------------------------------------------------------
-# 2. FUNCIÓN MODIFICADA: GENERACIÓN DE UNA FILA DE REPORTE HTML
+# 2.1 NUEVA FUNCIÓN: GENERACIÓN DE UNA FILA DE REPORTE DE ERROR
+# ----------------------------------------------------------------------
+def generar_fila_reporte_error(data):
+    """Genera una fila de reporte simple para empresas que fallaron en la obtención/análisis de datos."""
+    
+    # Se utiliza una columna para el nombre y el mensaje de error en las otras.
+    return f"""
+                <tr class="main-row" style="background-color: #f8d7da; color: #721c24;">
+                    <td class="red-cell" style="font-weight: bold;">{data['NOMBRE_EMPRESA']}</td>
+                    <td colspan="4" style="text-align: left;">
+                        ❌ {data['MOTIVO_FALLO']}
+                    </td>
+                </tr>
+    """
+
+# ----------------------------------------------------------------------
+# 2.2 FUNCIÓN MODIFICADA: GENERACIÓN DE UNA FILA DE REPORTE HTML
 # Se elimina la lógica de "Ver más" (JavaScript) para mostrar el detalle por defecto.
 # ----------------------------------------------------------------------
 def generar_fila_reporte(data):
@@ -670,6 +687,7 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
     previous_orden_grupo = None
     
     for i, data in enumerate(datos_ordenados):
+        # NOTA: Usar 'OPORTUNIDAD' de data para obtener la clave, incluso para 'ANÁLISIS FALLIDO'
         current_orden_grupo = obtener_clave_ordenacion(data)[0]
         
         # Lógica para determinar el encabezado de categoría
@@ -697,6 +715,12 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                     tabla_html_contenido += """
                         <tr class="category-header"><td colspan="5">OTRAS EMPRESAS SIN MOVIMIENTOS</td></tr>
                     """
+            # NUEVO BLOQUE: ENCABEZADO PARA ERRORES (Prioridad 99)
+            elif current_orden_grupo == 99: 
+                if previous_orden_grupo is None or previous_orden_grupo != 99:
+                    tabla_html_contenido += """
+                        <tr class="category-header" style="background-color: #dc3545;"><td colspan="5">❌ EMPRESAS CON PROBLEMAS EN EL ANÁLISIS</td></tr>
+                    """
                     
             # Poner un separador si no es la primera fila y hay cambio de grupo
             if not es_primera_fila and es_cambio_grupo:
@@ -705,8 +729,12 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                     <tr class="separator-row"><td colspan="5"></td></tr>
                 """
 
-        # Agregar las filas de la empresa
-        tabla_html_contenido += generar_fila_reporte(data)
+        # AGREGAR LAS FILAS DE LA EMPRESA (Usar la función correcta)
+        if data['OPORTUNIDAD'] == "ANÁLISIS FALLIDO":
+             tabla_html_contenido += generar_fila_reporte_error(data)
+        else:
+             tabla_html_contenido += generar_fila_reporte(data)
+             
         previous_orden_grupo = current_orden_grupo
 
     # --- INICIO DEL GRAN STRING HTML ---
@@ -941,14 +969,26 @@ def generar_reporte():
         # 1. ANÁLISIS GLOBAL: Procesar TODAS las 80+ empresas una sola vez
         print("Iniciando análisis global de todas las empresas...")
         datos_completos_por_ticker = {}
+        # NUEVO DICCIONARIO PARA ALMACENAR ERRORES EXPLÍCITAMENTE
+        errores_por_ticker = {} 
         
         for empresa_nombre, ticker in tickers.items():
             try:
                 data = obtener_datos_yfinance(ticker)
                 if data:
                     datos_completos_por_ticker[ticker] = clasificar_empresa(data)
+                else:
+                    # SI obtener_datos_yfinance devuelve None, es un fallo
+                    raise Exception("Fallo genérico al obtener datos (puede ser precio, históricos, o yfinance).") 
             except Exception as e:
-                print(f"❌ Error al procesar {ticker} en el análisis global: {e}")
+                # GUARDAR EL ERROR CON EL NOMBRE DE LA EMPRESA Y EL MOTIVO
+                print(f"❌ Error al procesar {ticker} en el análisis global: {e}. Se registrará como fallo.")
+                errores_por_ticker[ticker] = {
+                    "NOMBRE_EMPRESA": empresa_nombre,
+                    "TICKER": ticker,
+                    "OPORTUNIDAD": "ANÁLISIS FALLIDO",
+                    "MOTIVO_FALLO": f"No se pudieron obtener datos bursátiles de la fuente. Motivo: {str(e)[:100]}..." # Limitar el mensaje
+                }
 
         # 2. PROCESAR USUARIOS Y ENVIAR PERSONALIZADO
         print("\nIniciando envíos personalizados a usuarios premium...")
@@ -965,33 +1005,42 @@ def generar_reporte():
                 
                 print(f"\n⚙️ Procesando usuario: {nombre_usuario} ({email_usuario}) - Plan: {plan_usuario}")
                 
-                # 3. DETERMINAR LOS TICKERS ESPECÍFICOS PARA ESTE USUARIO
+                # 3. DETERMINAR LOS TICKERS ESPECÍFICOS Y FORZAR LA INCLUSIÓN DE FALLOS
                 plan_limpio = plan_usuario.upper().strip()
+                datos_para_reporte = []
                 
                 if plan_limpio == 'LOTE':
-                    # Si es LOTE, usa todos los datos analizados
-                    datos_para_reporte = list(datos_completos_por_ticker.values())
+                    # Si es LOTE, la lista de tickers que DEBERÍA tener es TODA
+                    tickers_a_incluir = list(tickers.values())
                 else:
                     # Convertir la cadena de empresas a una lista de tickers válidos
                     nombres_elegidos = [n.strip() for n in empresas_str.split(',')]
-                    tickers_del_usuario = [
+                    tickers_a_incluir = [
                         tickers[nombre_largo] 
                         for nombre_largo in nombres_elegidos 
                         if nombre_largo in tickers
                     ]
-                    
-                    # Filtrar los datos analizados previamente (paso 1)
-                    datos_para_reporte = [
-                        datos_completos_por_ticker[t] 
-                        for t in tickers_del_usuario 
-                        if t in datos_completos_por_ticker
-                    ]
+                
+                # ITERAR SOBRE LA LISTA DE TICKERS REQUERIDOS y FORZAR INCLUSIÓN
+                for t in tickers_a_incluir:
+                    if t in datos_completos_por_ticker:
+                        # Empresa analizada correctamente
+                        datos_para_reporte.append(datos_completos_por_ticker[t])
+                    elif t in errores_por_ticker:
+                        # Empresa fallida, incluir el registro de error
+                        datos_para_reporte.append(errores_por_ticker[t])
+                    # Las empresas que no están ni en analizadas ni en errores_por_ticker
+                    # son nombres que el usuario puso mal en la hoja (si no es LOTE)
+                    # o un fallo catastrófico no capturado. Se asume que no hay más casos
+                    # dado que 'LOTE' incluye todos y el bucle inicial procesó todos.
+                
                 
                 if not datos_para_reporte:
                     print(f"⚠️ Usuario {nombre_usuario} no tiene empresas válidas o no se encontraron datos. Saltando envío...")
                     continue
                     
                 # 4. ORDENAR DATOS Y GENERAR HTML PERSONALIZADO
+                # La ordenación ahora incluye la nueva prioridad para fallos (99)
                 datos_ordenados = sorted(datos_para_reporte, key=obtener_clave_ordenacion)
 
                 # Generar el HTML personalizado
