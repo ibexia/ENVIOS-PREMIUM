@@ -515,8 +515,8 @@ def generar_observaciones(data):
     # --- Nuevo: Advertencia Semanal ---
     advertencia_semanal = data['ADVERTENCIA_SEMANAL']
 
-    # CAMBIO: Se asegura font-size grande y color oscuro
-    texto_observacion = f'<strong style="text-align:left; font-size: 16px; color: #000;">Observaciones de {nombre_empresa}:</strong><br>'
+    # CAMBIO: Se añade style='text-align:left' a la etiqueta p exterior
+    texto_observacion = f'<strong style="text-align:left;">Observaciones de {nombre_empresa}:</strong><br>'
     
     # Nuevo texto de advertencia para insertar al inicio
     advertencia_texto = ""
@@ -555,8 +555,8 @@ def generar_observaciones(data):
     else:
         texto = "El algoritmo se encuentra en una zona de sobreventa y muestra una tendencia alcista en sus últimos valores, lo que activa una señal de compra fuerte. Se recomienda comprar para aprovechar un posible rebote, con un objetivo de precio en la zona de resistencia. La EMA de 100 periodos se encuentra en {valor_ema}€, actuando como un nivel de {tipo_ema}."
     
-    # Se asegura font-size: 16px y color negro en el párrafo contenedor.
-    return f'<p style="text-align:left; color:#000; font-size: 16px; line-height: 1.4;">{texto_observacion.strip()}{advertencia_texto}{texto.strip()}</p>'
+    # Se añade la advertencia al inicio del texto de la observación
+    return f'<p style="text-align:left; color:#000;">{texto_observacion.strip()}{advertencia_texto}{texto.strip()}</p>'
 
 def obtener_clave_ordenacion(empresa):
     categoria = empresa['OPORTUNIDAD']
@@ -591,7 +591,7 @@ def generar_fila_reporte_error(data):
     return f"""
                 <tr class="main-row" style="background-color: #f8d7da; color: #721c24;">
                     <td class="red-cell" style="font-weight: bold;">{data['NOMBRE_EMPRESA']}</td>
-                    <td colspan="4" style="text-align: left; padding: 10px;">
+                    <td colspan="4" style="text-align: left;">
                         ❌ {data['MOTIVO_FALLO']}
                     </td>
                 </tr>
@@ -600,8 +600,21 @@ def generar_fila_reporte_error(data):
 # ----------------------------------------------------------------------
 # 2.2 FUNCIÓN MODIFICADA: GENERACIÓN DE UNA FILA DE REPORTE HTML
 # Se elimina la lógica de "Ver más" (JavaScript) para mostrar el detalle por defecto.
-# Se incorpora la tabla anidada para compatibilidad (reemplazando flexbox).
 # ----------------------------------------------------------------------
+
+# --- CÓDIGO A AÑADIR (GENERAR FILA DE ERROR) ---
+def generar_fila_reporte_error(data):
+    """Genera una fila de reporte simple para empresas que fallaron en la obtención/análisis de datos."""
+    
+    # Se utiliza una columna para el nombre y el mensaje de error en las otras.
+    return f"""
+                <tr class="main-row" style="background-color: #f8d7da; color: #721c24;">
+                    <td class="red-cell" style="font-weight: bold;">{data['NOMBRE_EMPRESA']}</td>
+                    <td colspan="4" style="text-align: left; padding: 10px;">
+                        ❌ {data['MOTIVO_FALLO']}
+                    </td>
+                </tr>
+    """
 
 
 def generar_fila_reporte(data):
@@ -656,60 +669,58 @@ def generar_fila_reporte(data):
     
     
     # Se mantienen los estilos de la celda de la empresa
-    # Aseguramos color negro y tamaño 16px para el texto
-    nombre_con_precio = f"<a href='{empresa_link}' target='_blank' style='text-decoration:none; color:#000; font-size:16px;'><div style='padding: 5px 0;'><b>{data['NOMBRE_EMPRESA']}</b><br>({formatear_numero(data['PRECIO_ACTUAL'])}€)</div></a>"
+    nombre_con_precio = f"<a href='{empresa_link}' target='_blank' style='text-decoration:none; color:inherit;'><div style='padding: 5px 0;'><b>{data['NOMBRE_EMPRESA']}</b><br>({formatear_numero(data['PRECIO_ACTUAL'])}€)</div></a>"
 
     observaciones = generar_observaciones(data)
     
     # --- FILAS DE REPORTE CON ESTILOS INLINE (SOLUCIÓN A LA OCULTACIÓN) ---
     return f"""
                 <tr style="background-color: {color_fondo_fila}; border-bottom: 1px solid #ddd;">
-                    <td style="background-color: {color_celda_nombre}; font-weight: bold; padding: 10px 10px; border-right: 1px solid #ddd; text-align: left; vertical-align: middle; color: #000;">{nombre_con_precio}</td>
+                    <td style="background-color: {color_celda_nombre}; font-weight: bold; padding: 5px 10px; border-right: 1px solid #ddd; text-align: left; vertical-align: middle;">{nombre_con_precio}</td>
                     
-                    <td style="padding: 10px; border-right: 1px solid #ddd; text-align: center; vertical-align: middle; color: #000; font-size: 16px;">{data['TENDENCIA_ACTUAL']}</td>
+                    <td style="padding: 10px; border-right: 1px solid #ddd; text-align: center; vertical-align: middle;">{data['TENDENCIA_ACTUAL']}</td>
                     
-                    <td style="font-weight: bold; padding: 10px; border-right: 1px solid #ddd; text-align: center; color: {color_texto_oportunidad}; vertical-align: middle; font-size: 16px;">{data['OPORTUNIDAD']}</td>
+                    <td style="font-weight: bold; padding: 10px; border-right: 1px solid #ddd; text-align: center; color: {color_texto_oportunidad}; vertical-align: middle;">{data['OPORTUNIDAD']}</td>
                     
-                    <td style="padding: 10px; border-right: 1px solid #ddd; text-align: center; vertical-align: middle; color: #000; font-size: 16px;">{data['COMPRA_SI']}</td>
+                    <td style="padding: 10px; border-right: 1px solid #ddd; text-align: center; vertical-align: middle;">{data['COMPRA_SI']}</td>
                     
-                    <td style="padding: 10px; text-align: center; vertical-align: middle; color: #000; font-size: 16px;">{data['VENDE_SI']}</td>
+                    <td style="padding: 10px; text-align: center; vertical-align: middle;">{data['VENDE_SI']}</td>
                 </tr>
                 
                 <tr class="detailed-row">
                     <td colspan="5" style="padding: 10px; border-top: 1px solid #eee; background-color: #ffffff;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 16px; line-height: 1.5; color: #000000;">
-                            <tr>
-                                <td style="width: 25%; text-align:left; border: none; padding: 0 10px 0 0;">
-                                    <b>EMA</b><br>
-                                    <span style="font-weight:bold;">{formatear_numero(data['VALOR_EMA'])}€</span><br>
-                                    ({data['TIPO_EMA']})
-                                </td>
-                                <td style="width: 25%; text-align:left; border: none; padding: 0 10px;">
-                                    <b>Soportes</b><br>
-                                    S1: {formatear_numero(data['SOPORTE_1'])}€<br>
-                                    S2: {formatear_numero(data['SOPORTE_2'])}€
-                                </td>
-                                <td style="width: 25%; text-align:left; border: none; padding: 0 10px;">
-                                    <b>Resistencias</b><br>
-                                    R1: {formatear_numero(data['RESISTENCIA_1'])}€<br>
-                                    R2: {formatear_numero(data['RESISTENCIA_2'])}€
-                                </td>
-                                <td style="width: 25%; text-align:left; border: none; padding: 0 0 0 10px; font-size: 15px;">
-                                    <b>Análisis Semanal (SMI)</b><br>
-                                    {data['OBSERVACION_SEMANAL']}
-                                </td>
-                            </tr>
-                        </table>
-                        </td>
+                        <div style="display:flex; justify-content:space-around; align-items:flex-start; font-size: 0.9em; line-height: 1.5;">
+                            <div style="flex-basis: 25%; text-align:left;">
+                                <b>EMA</b><br>
+                                <span style="font-weight:bold;">{formatear_numero(data['VALOR_EMA'])}€</span><br>
+                                ({data['TIPO_EMA']})
+                            </div>
+                            <div style="flex-basis: 25%; text-align:left;">
+                                <b>Soportes</b><br>
+                                S1: {formatear_numero(data['SOPORTE_1'])}€<br>
+                                S2: {formatear_numero(data['SOPORTE_2'])}€
+                            </div>
+                            <div style="flex-basis: 25%; text-align:left;">
+                                <b>Resistencias</b><br>
+                                R1: {formatear_numero(data['RESISTENCIA_1'])}€<br>
+                                R2: {formatear_numero(data['RESISTENCIA_2'])}€
+                            </div>
+                            <div style="flex-basis: 25%; text-align:left; font-size:0.9em;">
+                                <b>Análisis Semanal (SMI)</b><br>
+                                {data['OBSERVACION_SEMANAL']}
+                            </div>
+                        </div>
+                    </td>
                 </tr>
                 <tr class="observaciones-row">
-                    <td colspan="5" style="padding: 10px; border-bottom: 3px solid #ddd; background-color: #f4f4f4; text-align: left; color: #000; font-size: 15px;">{observaciones}</td>
+                    <td colspan="5" style="padding: 10px; border-bottom: 3px solid #ddd; background-color: #f4f4f4; text-align: left;">{observaciones}</td>
                 </tr>
     """
 
 # ----------------------------------------------------------------------
 # 3. FUNCIÓN MODIFICADA: GENERACIÓN DEL CUERPO HTML COMPLETO
-# Se actualizan los estilos CSS para legibilidad y encabezado fijo.
+# Se actualiza el colspan de las cabeceras/filas de detalle a 5 (antes 6).
+# Se eliminan referencias a JavaScript innecesarias para el envío por email.
 # ----------------------------------------------------------------------
 def generar_html_reporte(datos_ordenados, nombre_usuario):
     """Genera el cuerpo HTML completo con datos y estilos."""
@@ -718,12 +729,12 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
     previous_orden_grupo = None
     
 # --- MODIFICACIÓN EN GENERAR_HTML_REPORTE (BUCLE FOR) ---
-# ... (Alrededor de la línea 600)
     for i, data in enumerate(datos_ordenados):
-        # NOTA: Usar 'OPORTUNIDAD' de data para obtener la clave...
+        # NOTA: Usar 'OPORTUNIDAD' de data para obtener la clave, incluso para 'ANÁLISIS FALLIDO'
+        # La función obtener_clave_ordenacion devolverá 99 para 'ANÁLISIS FALLIDO'
         current_orden_grupo = obtener_clave_ordenacion(data)[0] 
         
-        # Lógica para determinar el encabezado de categoría (Se mantiene, pero el caso 99 ya no se usa)
+        # Lógica para determinar el encabezado de categoría
         es_primera_fila = previous_orden_grupo is None
         es_cambio_grupo = current_orden_grupo != previous_orden_grupo
         
@@ -741,11 +752,16 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                         <tr class="category-header"><td colspan="5">ATENTOS A VENDER/VIGILANCIA</td></tr>
                     """
             elif current_orden_grupo in [6, 7]: # Grupo Intermedio
-                if previous_orden_grupo is None or previous_ordenado_grupo not in [6, 7]:
+                if previous_orden_grupo is None or previous_orden_grupo not in [6, 7]:
                     tabla_html_contenido += """
                         <tr class="category-header"><td colspan="5">OTRAS EMPRESAS SIN MOVIMIENTOS</td></tr>
                     """
-            # *** CASO 99 ELIMINADO ***
+            # NUEVO BLOQUE: ENCABEZADO PARA ERRORES (Prioridad 99)
+            elif current_orden_grupo == 99: 
+                if previous_orden_grupo is None or previous_orden_grupo != 99:
+                    tabla_html_contenido += """
+                        <tr class="category-header" style="background-color: #dc3545;"><td colspan="5">❌ EMPRESAS CON PROBLEMAS EN EL ANÁLISIS</td></tr>
+                    """
                     
             # Poner un separador si no es la primera fila y hay cambio de grupo
             if not es_primera_fila and es_cambio_grupo:
@@ -753,11 +769,13 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                     <tr class="separator-row"><td colspan="5"></td></tr>
                 """
 
-        # AGREGAR LAS FILAS DE LA EMPRESA (Ahora la lista ya está limpia y solo hay que llamar a la función normal)
-        tabla_html_contenido += generar_fila_reporte(data)
+        # AGREGAR LAS FILAS DE LA EMPRESA (Usar la función correcta: error o reporte normal)
+        if data['OPORTUNIDAD'] == "ANÁLISIS FALLIDO":
+             tabla_html_contenido += generar_fila_reporte_error(data)
+        else:
+             tabla_html_contenido += generar_fila_reporte(data)
              
         previous_orden_grupo = current_orden_grupo
-# ... (El resto de la función sigue igual)
 
     # --- INICIO DEL GRAN STRING HTML ---
     now_utc = datetime.utcnow()
@@ -768,39 +786,47 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
         <head>
             <title>Reporte Premium IBEXIA - {datetime.today().strftime('%d/%m/%Y')}</title>
             <style>
-                /* ESTILOS DE LEGIBILIDAD PARA MÓVIL (LETRA GRANDE Y NEGRA) */
                 body {{
                     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                     background-color: #f8f9fa;
                     margin: 0;
                     padding: 10px;
-                    font-size: 16px; /* Tamaño base legible */
-                    color: #000000; /* Color de texto base negro */
                 }}
                 .main-container {{
                     max-width: 1200px;
                     margin: 0 auto;
                     background-color: #ffffff;
-                    padding: 20px;
+                    padding: 15px;
                     border-radius: 8px;
                     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+                    /* CAMBIO AÑADIDO: Asegura alineación general de texto a la izquierda en el cuerpo del correo. */
                     text-align: left; 
                 }}
                 h2 {{
                     color: #343a40;
                     text-align: center;
-                    font-size: 1.8em;
-                    margin-bottom: 15px;
+                    font-size: 1.5em;
+                    margin-bottom: 10px;
                 }}
                 p {{
-                    color: #343a40;
+                    color: #6c757d;
+                    /* CAMBIO: Se remueve el text-align: center por defecto en párrafos. */
                     text-align: left; 
-                    font-size: 1.0em;
-                    line-height: 1.5;
+                    font-size: 0.9em;
                 }}
-                
-                /* EL CONTENEDOR ES CLAVE PARA EL SCROLL FIJO */
+                #search-container {{
+                    margin-bottom: 15px;
+                }}
+                #searchInput {{
+                    width: 100%;
+                    padding: 8px;
+                    font-size: 0.9em;
+                    border: 1px solid #ced4da;
+                    border-radius: 4px;
+                    box-sizing: border-box;
+                }}
                 .table-container {{
+                    /* Se eliminan propiedades relacionadas con scroll y posición fija, pues en email no funcionan bien */
                     overflow-x: auto;
                     overflow-y: hidden; 
                     position: relative;
@@ -808,45 +834,27 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                 table {{
                     width: 100%;
                     table-layout: fixed;
-                    margin: 10px auto 0 auto;
+                    margin: 10px auto 0 auto; /* Mantener la tabla centrada */
                     border-collapse: collapse;
-                    font-size: 16px; /* Tamaño de tabla principal más grande */
+                    font-size: 0.85em;
                 }}
                 th, td {{
                     border: 1px solid #e9ecef;
-                    padding: 10px 6px; /* Aumentar padding vertical para más altura */
+                    padding: 6px;
                     text-align: center;
                     vertical-align: middle;
                     white-space: normal;
-                    line-height: 1.3;
-                    color: #000000; /* Asegurar color negro en las celdas */
+                    line-height: 1.2;
                 }}
                 th {{
                     background-color: #e9ecef;
-                    color: #000000;
+                    color: #495057;
                     font-weight: 600;
-                    /* Implementación de cabecera fija/sticky */
-                    position: sticky; 
-                    top: 0; /* Pega en la parte superior del navegador */
-                    z-index: 100; /* Prioridad alta */
+                    /* Se eliminan propiedades sticky */
+                    top: 0;
+                    z-index: 10;
                     white-space: nowrap;
-                    font-size: 16px; 
                 }}
-                /* --- Nuevo estilo para la cabecera de categoría fija --- */
-                .category-header td {{
-                    background-color: #495057;
-                    color: white;
-                    font-size: 1.1em;
-                    font-weight: bold;
-                    text-align: center;
-                    padding: 10px;
-                    border: none;
-                    /* Cabecera pegajosa: 45px (altura aproximada del <th>) */
-                    position: sticky;
-                    top: 45px; 
-                    z-index: 90; 
-                }}
-                /* --- OTROS ESTILOS --- */
                 .compra {{ color: #28a745; font-weight: bold; }}
                 .venta {{ color: #dc3545; font-weight: bold; }}
                 .riesgo-compra {{ color: #ffc107; font-weight: bold; }} 
@@ -873,10 +881,8 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                 .observaciones-row td {{
                     background-color: #f9f9f9;
                     text-align: left;
-                    font-size: 15px; /* Ligeramente más pequeño, pero legible */
-                    line-height: 1.4;
+                    font-size: 0.8em;
                     border: 1px solid #e9ecef;
-                    color: #000000;
                 }}
                 .stacked-text {{
                     line-height: 1.2;
@@ -884,16 +890,9 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                 }}
                 .vigilar {{ color: #ffc107; font-weight: bold; }}
                 
+                /* Se elimina la clase collapsible-row y expand-button */
                 .detailed-row td {{
                     padding: 0;
-                }}
-                /* Estilos para asegurar que la tabla anidada (solución de compatibilidad) se vea bien */
-                .detailed-row table td {{
-                    border: none;
-                    padding: 8px 10px;
-                    text-align: left;
-                    line-height: 1.4;
-                    color: #000000;
                 }}
             </style>
         </head>
@@ -934,8 +933,10 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
 
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
 # 4. FUNCIÓN MODIFICADA: ENVÍO DE CORREO
-# Se ajusta el mensaje del cuerpo del correo.
+# Se modifica para que el CUERPO del email sea un aviso, y el ADJUNTO sea
+# el reporte HTML completo generado por generar_html_reporte.
 # ----------------------------------------------------------------------
 def enviar_email(html_content_full_report, asunto_email, destinatario_usuario, nombre_usuario, fecha_asunto, hora_asunto):
     """Envía un correo minimalista con un aviso para abrir el HTML adjunto."""
@@ -947,10 +948,13 @@ def enviar_email(html_content_full_report, asunto_email, destinatario_usuario, n
     remitente_nombre_completo = "IBEXIA.es <info@ibexia.es>" 
     remitente_visible = "info@ibexia.es" 
     
+    # Credenciales de Brevo (Asumo que son variables de entorno o constantes privadas)
+    # ATENCIÓN: No incluyo las claves aquí. Debes mantener tus constantes.
     remitente_login = "9853a2001@smtp-brevo.com" 
     password = "PRHTU5GN1ygZ9XVC"  
     
-    # --- 2. GENERACIÓN DEL CUERPO MÍNIMO DEL CORREO (SOLO AVISO) ---
+    # --- 2. GENERACIÓN DEL CUERPO MÍNIMO DEL CORREO ---
+    # Este es el texto profesional que se verá dentro de Gmail
     cuerpo_aviso_html = f"""
     <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #343a40; text-align: left;"> 
         <h2 style="color: #495057; font-size: 1.5em; margin-bottom: 20px;">
@@ -1129,34 +1133,31 @@ def generar_reporte():
                     if t in datos_completos_por_ticker:
                         # Empresa analizada correctamente
                         datos_para_reporte.append(datos_completos_por_ticker[t])
-                    elif t in errores_por_ticker:
-                        # Empresa fallida, incluir el registro de error
-                        datos_para_reporte.append(errores_por_ticker[t])
+                # --- NUEVO FILTRO PARA ASEGURAR QUE SÓLO HAY ANALIZADOS CORRECTAMENTE ---
+                # Aunque ya no incluimos los fallidos, esto asegura la limpieza de la lista
+                datos_para_reporte = [d for d in datos_para_reporte if d.get('OPORTUNIDAD') != "ANÁLISIS FALLIDO"]
+                # --------------------------------------------------------------------------
                 
                 
                 if not datos_para_reporte:
                     print(f"⚠️ Usuario {nombre_usuario} no tiene empresas válidas o no se encontraron datos. Saltando envío...")
                     continue
-
-                # *** FILTRADO DE SEGURIDAD (Se añade explícitamente) ***
-                datos_para_reporte = [d for d in datos_para_reporte if d.get('OPORTUNIDAD') != "ANÁLISIS FALLIDO"]
-                # ******************************************************
                     
 
                     
                 # 4. ORDENAR DATOS Y GENERAR HTML PERSONALIZADO
-                # La ordenación ahora NO incluye fallos
+                # La ordenación ahora incluye la nueva prioridad para fallos (99)
                 datos_ordenados = sorted(datos_para_reporte, key=obtener_clave_ordenacion)
 
                 # Generar el HTML personalizado
-                html_body_full_report = generar_html_reporte(datos_ordenados, nombre_usuario)
+                html_body = generar_html_reporte(datos_ordenados, nombre_usuario)
 
                 # 5. ENVIAR CORREO PERSONALIZADO
                 # ASUNTO CON EL FORMATO REQUERIDO: "ANALISIS PREMIUM 30/09 17:00 horas."
                 asunto = f"ANALISIS PREMIUM {fecha_asunto} {hora_asunto} horas."
                 
-                # Llamada a la función con el reporte completo
-                enviar_email(html_body_full_report, asunto, email_usuario, nombre_usuario, fecha_asunto, hora_asunto) 
+                # Llamada a la función con los nuevos argumentos de fecha y hora
+                enviar_email(html_body, asunto, email_usuario, nombre_usuario, fecha_asunto, hora_asunto) 
 
             except Exception as e:
                 print(f"❌ Error al procesar el usuario {usuario}: {e}")
