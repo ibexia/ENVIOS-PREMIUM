@@ -718,12 +718,12 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
     previous_orden_grupo = None
     
 # --- MODIFICACIÓN EN GENERAR_HTML_REPORTE (BUCLE FOR) ---
+# ... (Alrededor de la línea 600)
     for i, data in enumerate(datos_ordenados):
-        # NOTA: Usar 'OPORTUNIDAD' de data para obtener la clave, incluso para 'ANÁLISIS FALLIDO'
-        # La función obtener_clave_ordenacion devolverá 99 para 'ANÁLISIS FALLIDO'
+        # NOTA: Usar 'OPORTUNIDAD' de data para obtener la clave...
         current_orden_grupo = obtener_clave_ordenacion(data)[0] 
         
-        # Lógica para determinar el encabezado de categoría
+        # Lógica para determinar el encabezado de categoría (Se mantiene, pero el caso 99 ya no se usa)
         es_primera_fila = previous_orden_grupo is None
         es_cambio_grupo = current_orden_grupo != previous_orden_grupo
         
@@ -741,16 +741,11 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                         <tr class="category-header"><td colspan="5">ATENTOS A VENDER/VIGILANCIA</td></tr>
                     """
             elif current_orden_grupo in [6, 7]: # Grupo Intermedio
-                if previous_orden_grupo is None or previous_orden_grupo not in [6, 7]:
+                if previous_orden_grupo is None or previous_ordenado_grupo not in [6, 7]:
                     tabla_html_contenido += """
                         <tr class="category-header"><td colspan="5">OTRAS EMPRESAS SIN MOVIMIENTOS</td></tr>
                     """
-            # NUEVO BLOQUE: ENCABEZADO PARA ERRORES (Prioridad 99)
-            elif current_orden_grupo == 99: 
-                if previous_orden_grupo is None or previous_orden_grupo != 99:
-                    tabla_html_contenido += """
-                        <tr class="category-header" style="background-color: #dc3545;"><td colspan="5">❌ EMPRESAS CON PROBLEMAS EN EL ANÁLISIS</td></tr>
-                    """
+            # *** CASO 99 ELIMINADO ***
                     
             # Poner un separador si no es la primera fila y hay cambio de grupo
             if not es_primera_fila and es_cambio_grupo:
@@ -758,13 +753,11 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                     <tr class="separator-row"><td colspan="5"></td></tr>
                 """
 
-        # AGREGAR LAS FILAS DE LA EMPRESA (Usar la función correcta: error o reporte normal)
-        if data['OPORTUNIDAD'] == "ANÁLISIS FALLIDO":
-             tabla_html_contenido += generar_fila_reporte_error(data)
-        else:
-             tabla_html_contenido += generar_fila_reporte(data)
+        # AGREGAR LAS FILAS DE LA EMPRESA (Ahora la lista ya está limpia y solo hay que llamar a la función normal)
+        tabla_html_contenido += generar_fila_reporte(data)
              
         previous_orden_grupo = current_orden_grupo
+# ... (El resto de la función sigue igual)
 
     # --- INICIO DEL GRAN STRING HTML ---
     now_utc = datetime.utcnow()
@@ -834,10 +827,24 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                     font-weight: 600;
                     /* Implementación de cabecera fija/sticky */
                     position: sticky; 
-                    top: 0;
-                    z-index: 10;
+                    top: 0; /* Pega en la parte superior del navegador */
+                    z-index: 100; /* Prioridad alta */
                     white-space: nowrap;
-                    font-size: 16px; /* Tamaño consistente con el resto de la tabla */
+                    font-size: 16px; 
+                }}
+                /* --- Nuevo estilo para la cabecera de categoría fija --- */
+                .category-header td {{
+                    background-color: #495057;
+                    color: white;
+                    font-size: 1.1em;
+                    font-weight: bold;
+                    text-align: center;
+                    padding: 10px;
+                    border: none;
+                    /* Cabecera pegajosa: 45px (altura aproximada del <th>) */
+                    position: sticky;
+                    top: 45px; 
+                    z-index: 90; 
                 }}
                 /* --- OTROS ESTILOS --- */
                 .compra {{ color: #28a745; font-weight: bold; }}
@@ -1130,11 +1137,15 @@ def generar_reporte():
                 if not datos_para_reporte:
                     print(f"⚠️ Usuario {nombre_usuario} no tiene empresas válidas o no se encontraron datos. Saltando envío...")
                     continue
+
+                # *** FILTRADO DE SEGURIDAD (Se añade explícitamente) ***
+                datos_para_reporte = [d for d in datos_para_reporte if d.get('OPORTUNIDAD') != "ANÁLISIS FALLIDO"]
+                # ******************************************************
                     
 
                     
                 # 4. ORDENAR DATOS Y GENERAR HTML PERSONALIZADO
-                # La ordenación ahora incluye la nueva prioridad para fallos (99)
+                # La ordenación ahora NO incluye fallos
                 datos_ordenados = sorted(datos_para_reporte, key=obtener_clave_ordenacion)
 
                 # Generar el HTML personalizado
