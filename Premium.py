@@ -131,7 +131,7 @@ def leer_google_sheets():
     if not values:
         print('No se encontraron usuarios premium.')
     else:
-        print(f'Se encontraron {len(values)} usuarios premium para procesar.')
+        print(f'Se encontraron {len(values)} usuarios para procesar.')
         
     # Devuelve: [['Nombre', 'Email', 'Plan', 'Empresas'], ...]
     return values 
@@ -902,10 +902,14 @@ def generar_reporte():
 
             nombre_usuario, email_usuario, plan_usuario, empresas_usuario_str = usuario
             
-            # Solo procesar usuarios con plan 'PREMIUM'
-            if plan_usuario.upper() != 'PREMIUM':
-                print(f"ℹ️ Usuario {nombre_usuario} (Plan: {plan_usuario}) no es Premium. Saltando...")
-                continue
+            # ------------------------------------------------------------------
+            # CORRECCIÓN: Se elimina el filtro de plan para procesar a todos
+            # los usuarios listados en el Google Sheet.
+            # ------------------------------------------------------------------
+            # if plan_usuario.upper() != 'PREMIUM':
+            #     print(f"ℹ️ Usuario {nombre_usuario} (Plan: {plan_usuario}) no es Premium. Saltando...")
+            #     continue
+            # ------------------------------------------------------------------
 
             # Limpieza y mapeo de empresas
             empresas_nombres = [e.strip() for e in empresas_usuario_str.split(',') if e.strip()]
@@ -914,7 +918,7 @@ def generar_reporte():
                 print(f"⚠️ Usuario {nombre_usuario} no ha especificado empresas. Saltando envío...")
                 continue
                 
-            print(f"\nProcesando usuario: {nombre_usuario} (Email: {email_usuario}, Empresas: {len(empresas_nombres)})")
+            print(f"\nProcesando usuario: {nombre_usuario} (Email: {email_usuario}, Plan: {plan_usuario}, Empresas: {len(empresas_nombres)})")
 
             try:
                 datos_para_reporte = []
