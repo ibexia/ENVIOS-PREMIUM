@@ -1188,7 +1188,10 @@ def generar_reporte():
                         datos_para_reporte.append(datos_completos_por_ticker[t])
                     elif t in errores_por_ticker:
                         # Empresa que falló
-                         datos_para_reporte.append(errores_por_ticker[t])
+                        # *** MODIFICACIÓN APLICADA AQUÍ: Solo incluimos fallos si el plan es LOTE ***
+                        if plan_limpio == 'LOTE':
+                             datos_para_reporte.append(errores_por_ticker[t])
+                        # *** FIN DE MODIFICACIÓN ***
 
                 # --------------------------------------------------------------------------
                 
