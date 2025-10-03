@@ -740,12 +740,6 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                     tabla_html_contenido += """
                         <tr class="category-header"><td colspan="5">OTRAS EMPRESAS SIN MOVIMIENTOS</td></tr>
                     """
-            # NUEVO BLOQUE: ENCABEZADO PARA ERRORES (Prioridad 99)
-            elif current_orden_grupo == 99: 
-                if previous_orden_grupo is None or previous_orden_grupo != 99:
-                    tabla_html_contenido += """
-                        <tr class="category-header" style="background-color: #dc3545;"><td colspan="5">❌ EMPRESAS CON PROBLEMAS EN EL ANÁLISIS</td></tr>
-                    """
                     
             # Poner un separador si no es la primera fila y hay cambio de grupo
             if not es_primera_fila and es_cambio_grupo:
@@ -1186,12 +1180,11 @@ def generar_reporte():
                     if t in datos_completos_por_ticker:
                         # Empresa analizada correctamente
                         datos_para_reporte.append(datos_completos_por_ticker[t])
-                    elif t in errores_por_ticker:
-                        # Empresa que falló
-                        # *** MODIFICACIÓN APLICADA AQUÍ: Solo incluimos fallos si el plan es LOTE ***
-                        if plan_limpio == 'LOTE':
-                             datos_para_reporte.append(errores_por_ticker[t])
-                        # *** FIN DE MODIFICACIÓN ***
+                    # Las empresas en 'errores_por_ticker' se omiten completamente.
+                
+                # --------------------------------------------------------------------------
+                
+                # --------------------------------------------------------------------------
 
                 # --------------------------------------------------------------------------
                 
