@@ -703,6 +703,7 @@ def generar_fila_reporte(data):
     """
 
 # ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
 # 3. FUNCIÓN MODIFICADA: GENERACIÓN DEL CUERPO HTML COMPLETO
 # Se añade el bloque de búsqueda (searchInput) y el script filterTable.
 # ----------------------------------------------------------------------
@@ -769,6 +770,8 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                     background-color: #f8f9fa;
                     margin: 0;
                     padding: 10px;
+                    font-size: 1.1em; /* <-- Aumento del tamaño base */
+                    color: #000000;   /* <-- Color de letra negro */
                 }}
                 .main-container {{
                     max-width: 1200px;
@@ -787,10 +790,10 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                     margin-bottom: 10px;
                 }}
                 p {{
-                    color: #6c757d;
+                    color: #000000; /* <-- Color de letra negro */
                     /* CAMBIO: Se remueve el text-align: center por defecto en párrafos. */
                     text-align: left; 
-                    font-size: 0.9em;
+                    font-size: 1.0em; /* <-- Aumento del tamaño (antes era 0.9em) */
                 }}
                 #search-container {{
                     margin-bottom: 15px;
@@ -814,7 +817,8 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                     table-layout: fixed;
                     margin: 10px auto 0 auto; /* Mantener la tabla centrada */
                     border-collapse: collapse;
-                    font-size: 0.85em;
+                    font-size: 0.95em; /* <-- Aumento del tamaño (antes era 0.85em) */
+                    color: #000000;   /* <-- Color de letra negro para la tabla */
                 }}
                 th, td {{
                     border: 1px solid #e9ecef;
@@ -826,7 +830,7 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                 }}
                 th {{
                     background-color: #e9ecef;
-                    color: #495057;
+                    color: #000000; /* <-- Color de letra negro (antes era #495057) */
                     font-weight: 600;
                     /* Se eliminan propiedades sticky */
                     top: 0;
@@ -841,8 +845,8 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                 .bg-red {{ background-color: #f8d7da; color: #721c24; }}
                 .bg-highlight {{ background-color: #28a745; color: white; font-weight: bold; }}
                 .text-center {{ text-align: center; }}
-                .disclaimer {{ font-size: 0.8em; text-align: center; color: #6c757d; margin-top: 15px; }}
-                .small-text {{ font-size: 0.7em; color: #6c757d; }}
+                .disclaimer {{ font-size: 0.9em; text-align: center; color: #000000; margin-top: 15px; }} /* <-- Aumento de tamaño y color negro */
+                .small-text {{ font-size: 0.8em; color: #343a40; }} /* <-- Aumento de tamaño y color más oscuro para legibilidad (antes era #6c757d) */
                 .green-cell {{ background-color: #d4edda; }}
                 .red-cell {{ background-color: #f8d7da; }}
                 .yellow-cell {{ background-color: #fff3cd; }} 
@@ -850,7 +854,7 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                 .category-header td {{
                     background-color: #495057;
                     color: white;
-                    font-size: 1.1em;
+                    font-size: 1.2em; /* <-- Aumento de tamaño (antes era 1.1em) */
                     font-weight: bold;
                     text-align: center;
                     padding: 10px;
@@ -859,18 +863,20 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                 .observaciones-row td {{
                     background-color: #f9f9f9;
                     text-align: left;
-                    font-size: 0.8em;
+                    font-size: 0.9em; /* <-- Aumento de tamaño (antes era 0.8em) */
                     border: 1px solid #e9ecef;
+                    color: #000000; /* <-- Color de letra negro */
                 }}
                 .stacked-text {{
                     line-height: 1.2;
-                    font-size: 0.8em;
+                    font-size: 0.9em; /* <-- Aumento de tamaño (antes era 0.8em) */
                 }}
                 .vigilar {{ color: #ffc107; font-weight: bold; }}
                 
                 /* Se elimina la clase collapsible-row y expand-button */
                 .detailed-row td {{
                     padding: 0;
+                    color: #000000; /* <-- Asegurar color negro en el detalle */
                 }}
                 
                 /* Estilos para ocultar/mostrar filas */
