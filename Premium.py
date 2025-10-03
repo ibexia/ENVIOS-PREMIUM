@@ -684,8 +684,8 @@ def generar_html_reporte(datos_reporte, nombre_usuario):
             const v2 = getCellValue(asc ? b : a, idx).trim();
             
             // Intenta ordenar numéricamente (limpiando € y ,)
-            const num1 = parseFloat(v1.replace('€', '').replace(/\./g, '').replace(',', '.'));
-            const num2 = parseFloat(v2.replace('€', '').replace(/\./g, '').replace(',', '.'));
+            const num1 = parseFloat(v1.replace('€', '').replace(/\\./g, '').replace(',', '.'));
+            const num2 = parseFloat(v2.replace('€', '').replace(/\\./g, '').replace(',', '.'));
 
             if (!isNaN(num1) && !isNaN(num2) && v1 !== 'N/A' && v2 !== 'N/A') {
                 return num1 - num2;
@@ -849,12 +849,10 @@ def obtener_clave_ordenacion(data):
 def enviar_email(html_body, asunto, destinatario_email, nombre_usuario, fecha_asunto, hora_asunto):
     """Envía el correo electrónico con el reporte HTML."""
     try:
+        # CREDENCIALES RESTAURADAS: Se asume que SENDER_EMAIL/PASSWORD están configuradas en el entorno
+        # y se quita el chequeo explícito para evitar romper la configuración del usuario.
         sender_email = os.getenv('SENDER_EMAIL')
         sender_password = os.getenv('SENDER_PASSWORD')
-
-        if not sender_email or not sender_password:
-            print("❌ Error: Variables de entorno SENDER_EMAIL o SENDER_PASSWORD no configuradas.")
-            return
 
         msg = MIMEMultipart("alternative")
         msg['Subject'] = asunto
@@ -876,6 +874,7 @@ def enviar_email(html_body, asunto, destinatario_email, nombre_usuario, fecha_as
         print(f"✅ Correo enviado con éxito a {destinatario_email} para {nombre_usuario}.")
 
     except Exception as e:
+        # Se mantiene la impresión de error de conexión/credenciales que viene de smtplib
         print(f"❌ Error al enviar el correo a {destinatario_email}: {e}")
 
 # ----------------------------------------------------------------------
@@ -902,20 +901,14 @@ def generar_reporte():
 
             nombre_usuario, email_usuario, plan_usuario, empresas_usuario_str = usuario
             
-            # ------------------------------------------------------------------
-            # CORRECCIÓN: Se elimina el filtro de plan para procesar a todos
-            # los usuarios listados en el Google Sheet.
-            # ------------------------------------------------------------------
-            # if plan_usuario.upper() != 'PREMIUM':
-            #     print(f"ℹ️ Usuario {nombre_usuario} (Plan: {plan_usuario}) no es Premium. Saltando...")
-            #     continue
-            # ------------------------------------------------------------------
+            # NOTA: Se ha quitado el filtro de plan aquí para procesar todos los usuarios.
 
             # Limpieza y mapeo de empresas
-            empresas_nombres = [e.strip() for e in empresas_usuario_str.split(',') if e.strip()]
+            # CORRECCIÓN: Filtra entradas vacías o que solo contengan un guión "-"
+            empresas_nombres = [e.strip() for e in empresas_usuario_str.split(',') if e.strip() and e.strip() != '-']
             
             if not empresas_nombres:
-                print(f"⚠️ Usuario {nombre_usuario} no ha especificado empresas. Saltando envío...")
+                print(f"⚠️ Usuario {nombre_usuario} no ha especificado empresas o solo tiene guiones ('-'). Saltando envío...")
                 continue
                 
             print(f"\nProcesando usuario: {nombre_usuario} (Email: {email_usuario}, Plan: {plan_usuario}, Empresas: {len(empresas_nombres)})")
