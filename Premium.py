@@ -598,7 +598,9 @@ def generar_fila_reporte_error(data):
     """
 
 # ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
 # 2.2 FUNCIÓN MODIFICADA: GENERACIÓN DE UNA FILA DE REPORTE HTML
+# Se aplica la clase de parpadeo a la celda de Oportunidad.
 # ----------------------------------------------------------------------
 
 
@@ -626,12 +628,25 @@ def generar_fila_reporte(data):
         "DEFAULT_CELDA": "#f9f9f9"  # Gris muy claro (para Intermedio/Vigilar)
     }
     
+    # --- LÓGICA DE APLICACIÓN DE CLASE DE PARPADEO ---
+    clase_oportunidad = ""
+    oportunidad_texto = data['OPORTUNIDAD'].lower()
+    
+    if "compra activada" in oportunidad_texto or "posibilidad de compra" in oportunidad_texto:
+        clase_oportunidad = "blink-green"
+    elif "riesgo de venta" in oportunidad_texto:
+        clase_oportunidad = "blink-red"
+    elif "vigilar" in oportunidad_texto:
+        clase_oportunidad = "blink-yellow"
+        
+    # El resto de oportunidades (Seguirá bajando, Intermedio, Compra RIESGO, ANÁLISIS FALLIDO) no parpadean.
+    
     # 1. Determinar color de fondo para la celda del nombre (la que lleva color de clase)
-    if "compra" in data['OPORTUNIDAD'].lower() and "riesgo" not in data['OPORTUNIDAD'].lower():
+    if "compra" in oportunidad_texto and "riesgo" not in oportunidad_texto:
         color_celda_nombre = colores["COMPRA"]
-    elif "venta" in data['OPORTUNIDAD'].lower():
+    elif "venta" in oportunidad_texto:
         color_celda_nombre = colores["VENTA"]
-    elif "riesgo" in data['OPORTUNIDAD'].lower(): # Compra RIESGO
+    elif "riesgo" in oportunidad_texto: # Compra RIESGO
         color_celda_nombre = colores["RIESGO"]
     else:
         # Aquí caen ACX y ACS ("Intermedio", "VIGILAR", etc.)
@@ -641,13 +656,15 @@ def generar_fila_reporte(data):
     # 2. Determinar color de fondo para la fila principal (ligero, visible para el cliente de correo)
     color_fondo_fila = "#ffffff" # Por defecto blanco, pero la celda Nombre lleva el color
 
-    # 3. Determinar el color de la celda OPORTUNIDAD (la celda central)
-    # Utilizamos el mismo mapeo para darle el color directamente al contenido
-    if "compra" in data['OPORTUNIDAD'].lower() and "riesgo" not in data['OPORTUNIDAD'].lower():
+    # 3. La celda OPORTUNIDAD ahora usa una CLASE CSS que ya define el color de fondo y el texto.
+    # Se utiliza una cadena vacía para `color_texto_oportunidad` si se aplica la clase, ya que la clase lo define.
+    if clase_oportunidad:
+        color_texto_oportunidad = "" # La clase blink ya define el color (blanco/negro)
+    elif "compra" in oportunidad_texto and "riesgo" not in oportunidad_texto:
         color_texto_oportunidad = "#155724" # Texto oscuro
-    elif "venta" in data['OPORTUNIDAD'].lower():
+    elif "venta" in oportunidad_texto:
         color_texto_oportunidad = "#721c24" # Texto rojo oscuro
-    elif "riesgo" in data['OPORTUNIDAD'].lower():
+    elif "riesgo" in oportunidad_texto:
         color_texto_oportunidad = "#856404" # Texto amarillo oscuro
     else:
         color_texto_oportunidad = "#383d41" # Texto gris oscuro/negro
@@ -665,7 +682,7 @@ def generar_fila_reporte(data):
                     
                     <td style="padding: 10px; border-right: 1px solid #ddd; text-align: center; vertical-align: middle;">{data['TENDENCIA_ACTUAL']}</td>
                     
-                    <td style="font-weight: bold; padding: 10px; border-right: 1px solid #ddd; text-align: center; color: {color_texto_oportunidad}; vertical-align: middle;">{data['OPORTUNIDAD']}</td>
+                    <td class="{clase_oportunidad}" style="font-weight: bold; padding: 10px; border-right: 1px solid #ddd; text-align: center; color: {color_texto_oportunidad}; vertical-align: middle;">{data['OPORTUNIDAD']}</td>
                     
                     <td style="padding: 10px; border-right: 1px solid #ddd; text-align: center; vertical-align: middle;">{data['COMPRA_SI']}</td>
                     
@@ -704,8 +721,10 @@ def generar_fila_reporte(data):
 
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
 # 3. FUNCIÓN MODIFICADA: GENERACIÓN DEL CUERPO HTML COMPLETO
 # Se añade el bloque de búsqueda (searchInput) y el script filterTable.
+# Se actualiza el bloque <style> con los nuevos estilos de parpadeo.
 # ----------------------------------------------------------------------
 def generar_html_reporte(datos_ordenados, nombre_usuario):
     """Genera el cuerpo HTML completo con datos y estilos."""
@@ -770,8 +789,6 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                     background-color: #f8f9fa;
                     margin: 0;
                     padding: 10px;
-                    font-size: 1.1em; /* <-- Aumento del tamaño base */
-                    color: #000000;   /* <-- Color de letra negro */
                 }}
                 .main-container {{
                     max-width: 1200px;
@@ -790,10 +807,10 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                     margin-bottom: 10px;
                 }}
                 p {{
-                    color: #000000; /* <-- Color de letra negro */
+                    color: #6c757d;
                     /* CAMBIO: Se remueve el text-align: center por defecto en párrafos. */
                     text-align: left; 
-                    font-size: 1.0em; /* <-- Aumento del tamaño (antes era 0.9em) */
+                    font-size: 0.9em;
                 }}
                 #search-container {{
                     margin-bottom: 15px;
@@ -817,8 +834,7 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                     table-layout: fixed;
                     margin: 10px auto 0 auto; /* Mantener la tabla centrada */
                     border-collapse: collapse;
-                    font-size: 0.95em; /* <-- Aumento del tamaño (antes era 0.85em) */
-                    color: #000000;   /* <-- Color de letra negro para la tabla */
+                    font-size: 0.85em;
                 }}
                 th, td {{
                     border: 1px solid #e9ecef;
@@ -830,7 +846,7 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                 }}
                 th {{
                     background-color: #e9ecef;
-                    color: #000000; /* <-- Color de letra negro (antes era #495057) */
+                    color: #495057;
                     font-weight: 600;
                     /* Se eliminan propiedades sticky */
                     top: 0;
@@ -845,8 +861,8 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                 .bg-red {{ background-color: #f8d7da; color: #721c24; }}
                 .bg-highlight {{ background-color: #28a745; color: white; font-weight: bold; }}
                 .text-center {{ text-align: center; }}
-                .disclaimer {{ font-size: 0.9em; text-align: center; color: #000000; margin-top: 15px; }} /* <-- Aumento de tamaño y color negro */
-                .small-text {{ font-size: 0.8em; color: #343a40; }} /* <-- Aumento de tamaño y color más oscuro para legibilidad (antes era #6c757d) */
+                .disclaimer {{ font-size: 0.8em; text-align: center; color: #6c757d; margin-top: 15px; }}
+                .small-text {{ font-size: 0.7em; color: #6c757d; }}
                 .green-cell {{ background-color: #d4edda; }}
                 .red-cell {{ background-color: #f8d7da; }}
                 .yellow-cell {{ background-color: #fff3cd; }} 
@@ -854,7 +870,7 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                 .category-header td {{
                     background-color: #495057;
                     color: white;
-                    font-size: 1.2em; /* <-- Aumento de tamaño (antes era 1.1em) */
+                    font-size: 1.1em;
                     font-weight: bold;
                     text-align: center;
                     padding: 10px;
@@ -863,26 +879,55 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
                 .observaciones-row td {{
                     background-color: #f9f9f9;
                     text-align: left;
-                    font-size: 0.9em; /* <-- Aumento de tamaño (antes era 0.8em) */
+                    font-size: 0.8em;
                     border: 1px solid #e9ecef;
-                    color: #000000; /* <-- Color de letra negro */
                 }}
                 .stacked-text {{
                     line-height: 1.2;
-                    font-size: 0.9em; /* <-- Aumento de tamaño (antes era 0.8em) */
+                    font-size: 0.8em;
                 }}
                 .vigilar {{ color: #ffc107; font-weight: bold; }}
                 
                 /* Se elimina la clase collapsible-row y expand-button */
                 .detailed-row td {{
                     padding: 0;
-                    color: #000000; /* <-- Asegurar color negro en el detalle */
                 }}
                 
                 /* Estilos para ocultar/mostrar filas */
                 .hidden-row {{
                     display: none;
                 }}
+                
+                /* --- NUEVOS ESTILOS DE PARPADEO --- */
+                @keyframes blink-animation {{
+                    0%, 100% {{ opacity: 1; }}
+                    50% {{ opacity: 0.5; }}
+                }}
+
+                /* Riesgo de Venta / Riesgo de Venta Activada (Rojo) */
+                .blink-red {{
+                    background-color: #dc3545 !important; /* Rojo fuerte */
+                    color: white !important;
+                    font-weight: bold !important;
+                    animation: blink-animation 1.5s step-end infinite;
+                }}
+
+                /* Posibilidad de Compra / Posibilidad de Compra Activada (Verde) */
+                .blink-green {{
+                    background-color: #28a745 !important; /* Verde fuerte */
+                    color: white !important;
+                    font-weight: bold !important;
+                    animation: blink-animation 1.5s step-end infinite;
+                }}
+                
+                /* VIGILAR (Amarillo) */
+                .blink-yellow {{
+                    background-color: #ffc107 !important; /* Amarillo fuerte */
+                    color: black !important;
+                    font-weight: bold !important;
+                    animation: blink-animation 1.5s step-end infinite;
+                }}
+                /* ---------------------------------- */
             </style>
         </head>
         <body>
