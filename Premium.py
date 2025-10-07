@@ -103,10 +103,10 @@ tickers = {
 
 # ----------------------------------------------------------------------
 # 1. FUNCIÓN MODIFICADA: LECTURA DE GOOGLE SHEETS
-# Se modifica para leer las 5 columnas (Nombre, Email, Plan, Empresas, Caducidad).
+# Se modifica para leer las 6 columnas (Nombre, Email, Plan, Empresas, Caducidad, Periodo Gratis).
 # ----------------------------------------------------------------------
 def leer_google_sheets():
-    """Lee la lista de usuarios, sus planes, empresas elegidas y fecha de caducidad."""
+    """Lee la lista de usuarios, sus planes, empresas elegidas, fecha de caducidad y periodo gratis."""
     try:
         credentials_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
         if not credentials_json:
@@ -125,10 +125,10 @@ def leer_google_sheets():
     if not spreadsheet_id:
         raise Exception("No se encontró la variable de entorno SPREADSHEET_ID")
     
-    # Rango: A: Nombre, B: Email, C: Plan, D: Empresas, E: Caducidad
+    # Rango: A: Nombre, B: Email, C: Plan, D: Empresas, E: Caducidad, F: Periodo Gratis
     # Asumo Hoja1, empezando en Fila 2 (A2) para saltar el encabezado
-    # --- CAMBIO CLAVE: Ampliación del rango a D: Empresas -> E: Caducidad ---
-    range_name = 'Hoja 1!A2:E' 
+    # --- CAMBIO CLAVE: Ampliación del rango a E: Caducidad -> F: Periodo Gratis ---
+    range_name = 'Hoja 1!A2:F' 
     # ------------------------------------------------------------------------
 
     service = build('sheets', 'v4', credentials=creds)
@@ -141,7 +141,7 @@ def leer_google_sheets():
     else:
         print(f'Se encontraron {len(values)} usuarios premium para procesar.')
         
-    # Devuelve: [['Nombre', 'Email', 'Plan', 'Empresas', 'Caducidad'], ...]
+    # Devuelve: [['Nombre', 'Email', 'Plan', 'Empresas', 'Caducidad', 'Periodo Gratis'], ...]
     return values 
 
 # ----------------------------------------------------------------------
@@ -608,7 +608,7 @@ def generar_fila_reporte_error(data):
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
 # 2.2 FUNCIÓN MODIFICADA: GENERACIÓN DE UNA FILA DE REPORTE HTML
-# Se aplica la clase de parpadeo a la celda de Oportunidad.
+# Se mantiene igual que la versión anterior (solo se modifican las que interactúan con las nuevas columnas)
 # ----------------------------------------------------------------------
 
 
@@ -730,9 +730,7 @@ def generar_fila_reporte(data):
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
-# 3. FUNCIÓN MODIFICADA: GENERACIÓN DEL CUERPO HTML COMPLETO
-# Se mantiene el bloque de búsqueda (searchInput) y el script filterTable.
-# Se actualiza el bloque <style> con los nuevos estilos de parpadeo.
+# 3. FUNCIÓN DE GENERACIÓN DEL CUERPO HTML COMPLETO (Se mantiene igual)
 # ----------------------------------------------------------------------
 def generar_html_reporte(datos_ordenados, nombre_usuario):
     """Genera el cuerpo HTML completo con datos y estilos."""
@@ -1040,10 +1038,9 @@ def generar_html_reporte(datos_ordenados, nombre_usuario):
 
 # ----------------------------------------------------------------------
 # 4. FUNCIÓN MODIFICADA: ENVÍO DE CORREO
-# Se añaden argumentos para la fecha de caducidad y días restantes.
-# Se modifica el cuerpo del email (cuerpo_aviso_html) para incluir la caducidad.
+# Se añade argumento para el periodo gratis y lógica para incluir el mensaje de prueba.
 # ----------------------------------------------------------------------
-def enviar_email(html_content_full_report, asunto_email, destinatario_usuario, nombre_usuario, fecha_asunto, hora_asunto, fecha_caducidad, dias_restantes):
+def enviar_email(html_content_full_report, asunto_email, destinatario_usuario, nombre_usuario, fecha_asunto, hora_asunto, fecha_caducidad, dias_restantes, periodo_gratis_str):
     """Envía un correo minimalista con un aviso para abrir el HTML adjunto."""
     
     # --- 1. CREDENCIALES DE ENVÍO SMTP (Brevo) ---
@@ -1058,8 +1055,13 @@ def enviar_email(html_content_full_report, asunto_email, destinatario_usuario, n
     remitente_login = "9853a2001@smtp-brevo.com" 
     password = "PRHTU5GN1ygZ9XVC"  
     
-    # --- Lógica para el mensaje de caducidad ---
-    if dias_restantes <= 7:
+    # --- Lógica para el mensaje de caducidad y periodo gratis ---
+    
+    # Lógica de CADUCIDAD (Si no es periodo GRATIS, se mantiene)
+    if periodo_gratis_str.upper().strip() == "GRATIS":
+        mensaje_caducidad = f"🎁 **¡Bienvenido a su Período de Prueba Gratis!** Su cuenta se cancelará automáticamente el {fecha_caducidad}."
+        estilo_caducidad = "color: #007bff; font-weight: bold;" # Azul
+    elif dias_restantes <= 7:
         mensaje_caducidad = f"🚨 **AVISO: Su servicio Premium caduca el {fecha_caducidad}. ¡Solo le quedan {dias_restantes} días!**"
         estilo_caducidad = "color: #dc3545; font-weight: bold;" # Rojo
     elif dias_restantes <= 30:
@@ -1143,7 +1145,7 @@ def enviar_email(html_content_full_report, asunto_email, destinatario_usuario, n
 
 # ----------------------------------------------------------------------
 # 5. FUNCIÓN REESTRUCTURADA: LÓGICA PRINCIPAL (Multi-Usuario)
-# Se añade lógica para gestionar la columna 'Caducidad'.
+# Se añade lógica para gestionar la columna 'Periodo Gratis'.
 # ----------------------------------------------------------------------
 def generar_reporte():
     try:
@@ -1221,31 +1223,28 @@ def generar_reporte():
 
         for usuario in usuarios_premium:
             try:
-                # --- CAMBIO CLAVE: Desestructurar 5 campos ---
-                if len(usuario) < 5:
-                    print(f"⚠️ Fila de usuario incompleta: {usuario}. Se esperaban 5 columnas. Saltando...")
-                    continue
+                # --- CAMBIO CLAVE: Desestructurar 6 campos ---
+                if len(usuario) < 6:
+                    # Rellenar con cadenas vacías si la fila es corta
+                    usuario.extend([''] * (6 - len(usuario)))
                     
-                nombre_usuario, email_usuario, plan_usuario, empresas_str, caducidad_str = usuario
+                nombre_usuario, email_usuario, plan_usuario, empresas_str, caducidad_str, periodo_gratis_str = usuario
                 
-                print(f"\n⚙️ Procesando usuario: {nombre_usuario} ({email_usuario}) - Plan: {plan_usuario} - Caducidad: {caducidad_str}")
+                print(f"\n⚙️ Procesando usuario: {nombre_usuario} ({email_usuario}) - Plan: {plan_usuario} - Caducidad: {caducidad_str} - Periodo Gratis: {periodo_gratis_str}")
                 
-                # --- NUEVA LÓGICA DE CADUCIDAD ---
+                # --- NUEVA LÓGICA DE CADUCIDAD Y FILTRADO ---
                 try:
-                    # Intentar parsear la fecha. Asumo formato D/M/A o D-M-A (ej: 6/10/2025 o 6-10-2025)
-                    # El formato más flexible es el que intenta día, mes, año con / o -.
-                    # Se usa re para reemplazar / por - y luego intentar varios formatos
+                    # Limpiar y parsear la fecha
                     fecha_caducidad_raw = caducidad_str.replace('/', '-')
                     
-                    # Intentamos inferir el formato
                     formatos_fecha = ["%d-%m-%Y", "%d-%m-%y", "%m-%d-%Y", "%m-%d-%y"] 
                     fecha_caducidad = None
                     for fmt in formatos_fecha:
                         try:
                             fecha_caducidad = datetime.strptime(fecha_caducidad_raw, fmt).date()
-                            break # Encontrado el formato
+                            break 
                         except ValueError:
-                            continue # Intentar el siguiente formato
+                            continue 
 
                     if not fecha_caducidad:
                         raise ValueError(f"Formato de fecha no reconocido para '{caducidad_str}'.")
@@ -1291,10 +1290,6 @@ def generar_reporte():
                 
                 # --------------------------------------------------------------------------
                 
-                # --------------------------------------------------------------------------
-
-                # --------------------------------------------------------------------------
-                
                 
                 if not datos_para_reporte:
                     print(f"⚠️ Usuario {nombre_usuario} no tiene empresas válidas o no se encontraron datos. Saltando envío...")
@@ -1313,15 +1308,16 @@ def generar_reporte():
                 # ASUNTO CON EL FORMATO REQUERIDO: "ANALISIS PREMIUM 30/09 17:00 horas."
                 asunto = f"ANALISIS PREMIUM {fecha_asunto} {hora_asunto} horas."
                 
-                # Llamada a la función con los nuevos argumentos de caducidad
+                # Llamada a la función con los nuevos argumentos de caducidad y periodo gratis
                 enviar_email(html_body, 
                              asunto, 
                              email_usuario, 
                              nombre_usuario, 
                              fecha_asunto, 
                              hora_asunto,
-                             fecha_caducidad_formateada, # Pasa la fecha de caducidad
-                             dias_restantes) # Pasa los días restantes
+                             fecha_caducidad_formateada, 
+                             dias_restantes,
+                             periodo_gratis_str) # Pasa el valor de la columna F
 
             except Exception as e:
                 print(f"❌ Error al procesar el usuario {usuario}: {e}")
