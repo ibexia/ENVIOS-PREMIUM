@@ -52,7 +52,7 @@ def leer_google_sheets_simplificado():
 # 2. FUNCIÓN DE ENVÍO DE CORREO SIMPLIFICADA (Datos tomados de Premium.py)
 # ======================================================================
 def enviar_email_simple(destinatario_usuario, nombre_usuario):
-    """Envía un correo con el cuerpo 'HOLA', utilizando las credenciales SMTP de tu código original."""
+    """Envía un correo con el cuerpo de la encuesta, utilizando las credenciales SMTP de tu código original."""
     
     # --- 1. CREDENCIALES DE ENVÍO SMTP (Brevo) ---
     # DATOS LITERALES COPIADOS DE LA FUNCIÓN 'enviar_email' EN Premium.py
@@ -61,23 +61,51 @@ def enviar_email_simple(destinatario_usuario, nombre_usuario):
     remitente_nombre_completo = "IBEXIA.es <info@ibexia.es>" 
     remitente_visible = "info@ibexia.es" 
     remitente_login = "9853a2001@smtp-brevo.com" 
+    # El código debe ser el guardado [2025-06-24]
     password = "PRHTU5GN1ygZ9XVC"  
     
-    asunto_email = "Mensaje de Prueba IBEXIA - HOLA"
+    asunto_email = "Encuesta de Opinión y Aviso Importante de IBEXIA.es"
     
-    # --- 2. GENERACIÓN DEL CUERPO MÍNIMO DEL CORREO ---
-    # Cuerpo del email requerido: "HOLA"
+    # --- 2. GENERACIÓN DEL CUERPO MÍNIMO DEL CORREO (MODIFICADO) ---
+    enlace_encuesta = "https://www.survio.com/survey/d/W9S6B9V5R7P5W5I0Q"
+    
     cuerpo_aviso_html = f"""
-    <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #343a40; text-align: left;"> 
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #343a40; text-align: left; line-height: 1.6;"> 
         <h2 style="color: #495057; font-size: 1.5em; margin-bottom: 20px;">
             👋 ¡Hola, {nombre_usuario}!
         </h2>
         
-        <p style="font-size: 1.2em; font-weight: bold; color: #007bff; margin-bottom: 30px;">
-            HOLA
+        <p style="margin-bottom: 15px;">
+            Desde <strong style="color: #007bff;">IBEXIA.es</strong>, hemos creado una encuesta muy breve para conocer tu opinión sobre nuestros servicios. 
+            ¡Tu feedback es esencial para seguir mejorando!
         </p>
+
+        <p style="margin-bottom: 15px; font-weight: bold; color: #dc3545;">
+            ⚠️ Aviso Importante: Te informamos que a partir de **Noviembre**, el servicio Premium comenzará a ser de pago. 
+            Agradeceríamos enormemente tu participación en esta encuesta antes de esa fecha.
+        </p>
+
+        <p style="margin-bottom: 30px;">
+            Hacer la encuesta no te llevará más de **2 minutos**. ¡Agradecemos de antemano tu tiempo!
+        </p>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <a href="{enlace_encuesta}" target="_blank" style="
+                display: inline-block; 
+                padding: 12px 25px; 
+                background-color: #007bff; 
+                color: #ffffff; 
+                text-decoration: none; 
+                border-radius: 5px; 
+                font-size: 16px; 
+                font-weight: bold;
+                border: 1px solid #007bff;
+            ">
+                Responder la Encuesta (2 minutos)
+            </a>
+        </div>
         <p style="font-size: 0.9em; color: #6c757d; margin-top: 20px;">
-            Este es un mensaje de prueba simplificado desde tu script.
+            Si tienes alguna duda, no dudes en contactarnos.
         </p>
     </div>
     """
@@ -100,7 +128,7 @@ def enviar_email_simple(destinatario_usuario, nombre_usuario):
         servidor.login(remitente_login, password) 
         servidor.sendmail(remitente_visible, destinatario_usuario, msg.as_string()) 
         servidor.quit()
-        print(f"✅ Correo 'HOLA' enviado a {destinatario_usuario} (Nombre: {nombre_usuario})")
+        print(f"✅ Correo de Encuesta enviado a {destinatario_usuario} (Nombre: {nombre_usuario})")
         
     except Exception as e:
         print(f"❌ Error al enviar el correo a {destinatario_usuario}: {e}")
@@ -110,7 +138,7 @@ def enviar_email_simple(destinatario_usuario, nombre_usuario):
 # ======================================================================
 def enviar_saludos_a_usuarios():
     try:
-        print("Iniciando lectura de usuarios y envío de correos 'HOLA'...")
+        print("Iniciando lectura de usuarios y envío de correos de Encuesta...")
         usuarios_premium = leer_google_sheets_simplificado()
 
         for usuario in usuarios_premium:
@@ -133,10 +161,10 @@ def enviar_saludos_a_usuarios():
             except Exception as e:
                 print(f"❌ Error al procesar y enviar correo al usuario {usuario}: {e}")
 
-        print("\nProceso de envío de saludos completado.")
+        print("\nProceso de envío de Encuestas completado.")
 
     except Exception as e:
-        print(f"❌ Error al ejecutar el script principal de saludos: {e}")
+        print(f"❌ Error al ejecutar el script principal de Encuestas: {e}")
 
 if __name__ == '__main__':
     enviar_saludos_a_usuarios()
