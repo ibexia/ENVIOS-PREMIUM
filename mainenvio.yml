@@ -1,0 +1,40 @@
+name: Envio Manual de Saludos Premium
+
+on:
+  # --- CAMBIOS CLAVE ---
+  # 1. Se ELIMINA la sección 'schedule' para evitar envíos automáticos.
+  # 2. Se mantiene 'workflow_dispatch' para la ejecución manual.
+  workflow_dispatch:
+    # Esto te permite ejecutar el script manualmente desde la interfaz de GitHub
+    # ----------------------
+
+jobs:
+  run_script:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    # 1. Configuración de Python
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+        
+    # 2. Instalación de Dependencias
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # El script simplificado (EnvioCorreo.py) solo necesita estas librerías:
+        pip install google-api-python-client google-auth-oauthlib google-auth
+        # y las librerías estándar de Python (os, json, smtplib, email.mime)
+        
+    # 3. Ejecución del Script
+    - name: Run Python Script
+      # Pasa los secrets como variables de entorno al script
+      env:
+        GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+        SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+        
+      # --- CAMBIO CLAVE: Se ejecuta el nuevo archivo ---
+      run: python EnvioCorreo.py
+      # ------------------------------------------------
