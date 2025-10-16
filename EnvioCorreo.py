@@ -52,7 +52,7 @@ def leer_google_sheets_simplificado():
 # 2. FUNCIÓN DE ENVÍO DE CORREO SIMPLIFICADA (Datos tomados de Premium.py)
 # ======================================================================
 def enviar_email_simple(destinatario_usuario, nombre_usuario):
-    """Envía un correo con el cuerpo de la encuesta, utilizando las credenciales SMTP de tu código original."""
+    """Envía un correo con el cuerpo modificado para informar sobre el cese del servicio Premium."""
     
     # --- 1. CREDENCIALES DE ENVÍO SMTP (Brevo) ---
     # DATOS LITERALES COPIADOS DE LA FUNCIÓN 'enviar_email' EN Premium.py
@@ -62,35 +62,39 @@ def enviar_email_simple(destinatario_usuario, nombre_usuario):
     remitente_visible = "info@ibexia.es" 
     remitente_login = "9853a2001@smtp-brevo.com" 
     # El código debe ser el guardado [2025-06-24]
+    # Se utiliza la contraseña guardada: "PRHTU5GN1ygZ9XVC"
     password = "PRHTU5GN1ygZ9XVC"  
     
-    asunto_email = "Encuesta de Opinión y Aviso Importante de IBEXIA.es"
+    # ASUNTO MODIFICADO
+    asunto_email = "Actualización Importante sobre el Servicio Premium de IBEXIA.es"
     
-    # --- 2. GENERACIÓN DEL CUERPO MÍNIMO DEL CORREO (MODIFICADO) ---
-    enlace_encuesta = "https://www.survio.com/survey/d/W9S6B9V5R7P5W5I0Q"
+    # --- 2. GENERACIÓN DEL CUERPO MÍNIMO DEL CORREO (MODIFICADO PROFESIONALMENTE) ---
+    enlace_ibexia = "https://www.ibexia.es"
     
     cuerpo_aviso_html = f"""
-    <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #343a40; text-align: left; line-height: 1.6;"> 
-        <h2 style="color: #495057; font-size: 1.5em; margin-bottom: 20px;">
-            👋 ¡Hola, {nombre_usuario}!
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #343a40; text-align: left; line-height: 1.6; border: 1px solid #e9ecef; border-radius: 8px;"> 
+        <h2 style="color: #495057; font-size: 1.5em; margin-bottom: 20px; border-bottom: 2px solid #007bff; padding-bottom: 10px;">
+            Estimado/a Usuario/a, {nombre_usuario}
         </h2>
         
         <p style="margin-bottom: 15px;">
-            Desde <strong style="color: #007bff;">IBEXIA.es</strong>, hemos creado una encuesta muy breve para conocer tu opinión sobre nuestros servicios. 
-            ¡Tu feedback es esencial para seguir mejorando!
+            Le escribimos desde <strong style="color: #007bff;">IBEXIA.es</strong> para comunicarle una **actualización estratégica** en la disponibilidad de nuestros servicios.
         </p>
 
-        <p style="margin-bottom: 15px; font-weight: bold; color: #dc3545;">
-            ⚠️ Aviso Importante: Te informamos que a partir de **Noviembre**, el servicio Premium comenzará a ser de pago. 
-            Agradeceríamos enormemente tu participación en esta encuesta antes de esa fecha.
+        <p style="margin-bottom: 15px;">
+            Tras un periodo de análisis y optimización, hemos tomado la decisión de **finalizar el servicio Premium** como una oferta independiente. Nuestro objetivo principal es maximizar el valor ofrecido a toda nuestra comunidad.
         </p>
 
+        <p style="margin-bottom: 15px; font-weight: bold;">
+            En consecuencia, nos complace informarle que las funcionalidades clave asociadas anteriormente al servicio Premium han sido integradas y ahora están disponibles de forma **completamente gratuita** a través de la sección principal de nuestro portal web.
+        </p>
+        
         <p style="margin-bottom: 30px;">
-            Hacer la encuesta no te llevará más de **2 minutos**. ¡Agradecemos de antemano tu tiempo!
+            Le invitamos a visitar nuestra página para acceder sin restricciones a todas las herramientas y recursos mejorados:
         </p>
         
         <div style="text-align: center; margin: 30px 0;">
-            <a href="{enlace_encuesta}" target="_blank" style="
+            <a href="{enlace_ibexia}" target="_blank" style="
                 display: inline-block; 
                 padding: 12px 25px; 
                 background-color: #007bff; 
@@ -101,11 +105,16 @@ def enviar_email_simple(destinatario_usuario, nombre_usuario):
                 font-weight: bold;
                 border: 1px solid #007bff;
             ">
-                Responder la Encuesta (2 minutos)
+                Acceder a IBEXIA.es
             </a>
         </div>
+        
+        <p style="margin-top: 20px;">
+            Agradecemos sinceramente su participación y apoyo continuo como usuario de IBEXIA.es.
+        </p>
+
         <p style="font-size: 0.9em; color: #6c757d; margin-top: 20px;">
-            Si tienes alguna duda, no dudes en contactarnos.
+            Para cualquier consulta o aclaración respecto a esta transición, no dude en contactar con nuestro equipo de soporte.
         </p>
     </div>
     """
@@ -128,7 +137,7 @@ def enviar_email_simple(destinatario_usuario, nombre_usuario):
         servidor.login(remitente_login, password) 
         servidor.sendmail(remitente_visible, destinatario_usuario, msg.as_string()) 
         servidor.quit()
-        print(f"✅ Correo de Encuesta enviado a {destinatario_usuario} (Nombre: {nombre_usuario})")
+        print(f"✅ Correo de Aviso de Servicio enviado a {destinatario_usuario} (Nombre: {nombre_usuario})")
         
     except Exception as e:
         print(f"❌ Error al enviar el correo a {destinatario_usuario}: {e}")
@@ -138,7 +147,7 @@ def enviar_email_simple(destinatario_usuario, nombre_usuario):
 # ======================================================================
 def enviar_saludos_a_usuarios():
     try:
-        print("Iniciando lectura de usuarios y envío de correos de Encuesta...")
+        print("Iniciando lectura de usuarios y envío de correos de Aviso de Servicio...")
         usuarios_premium = leer_google_sheets_simplificado()
 
         for usuario in usuarios_premium:
@@ -161,10 +170,10 @@ def enviar_saludos_a_usuarios():
             except Exception as e:
                 print(f"❌ Error al procesar y enviar correo al usuario {usuario}: {e}")
 
-        print("\nProceso de envío de Encuestas completado.")
+        print("\nProceso de envío de Avisos de Servicio completado.")
 
     except Exception as e:
-        print(f"❌ Error al ejecutar el script principal de Encuestas: {e}")
+        print(f"❌ Error al ejecutar el script principal de Avisos de Servicio: {e}")
 
 if __name__ == '__main__':
     enviar_saludos_a_usuarios()
